@@ -6,7 +6,7 @@ program
   .name("brian-code")
   .description("AI coding assistant with web UI")
   .version("0.1.0")
-  .option("-p, --port <number>", "port to listen on", "3000")
+  .option("-p, --port <number>", "port to listen on", "5001")
   .option("--no-open", "do not open browser automatically")
   .parse();
 

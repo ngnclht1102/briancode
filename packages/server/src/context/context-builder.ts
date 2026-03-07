@@ -9,8 +9,15 @@ export async function buildSystemPrompt(): Promise<string> {
 
   parts.push(
     "You are Brian Code, an AI coding assistant. You help users understand and modify their codebase.",
-    "You have access to tools for reading files, searching code, listing directories, and viewing git diffs.",
+    "You have access to tools for reading files, searching code, listing directories, viewing git diffs, writing files, editing files, deleting files, and running shell commands.",
     "Use tools to gather context before answering. Be concise and accurate.",
+    "",
+    "When the user asks you to make changes:",
+    "1. First read the relevant files to understand the current code.",
+    "2. Explain what you plan to do briefly.",
+    "3. Use write_file/edit_file/delete_file/run_shell tools to apply the changes directly.",
+    "4. For edits, always read the file first, then provide the complete new content via edit_file.",
+    "Keep changes focused — one file per tool call.",
   );
 
   // Agents.md — project-specific instructions

@@ -1,6 +1,5 @@
 import type { WebSocket } from "ws";
 import { chatHandler } from "./chat-handler.js";
-import { executeSteps, cancelExecution, rollback, type ExecutableStep } from "../executor/executor.js";
 
 const connectedClients = new Set<WebSocket>();
 
@@ -28,17 +27,6 @@ export function handleWebSocket(socket: WebSocket) {
         case "chat":
           await chatHandler(socket, msg.message);
           break;
-        case "execute":
-          await executeSteps(socket, msg.steps as ExecutableStep[]);
-          break;
-        case "execute:cancel":
-          cancelExecution();
-          break;
-        case "execute:rollback": {
-          const result = rollback();
-          socket.send(JSON.stringify({ type: "execute:rollback_done", ...result }));
-          break;
-        }
         default:
           socket.send(
             JSON.stringify({ type: "error", message: `Unknown message type: ${msg.type}` }),

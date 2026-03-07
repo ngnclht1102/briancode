@@ -431,3 +431,38 @@ Multiple conversations per project with persistent history. Users can create, sw
 | QA-P8-001 | Test: conversation CRUD | Create, persist, delete conversations |
 | QA-P8-002 | Test: load conversation | Load past conversation, verify messages and AI context |
 | QA-P8-003 | Test: project isolation | Conversations filtered by project after switching |
+
+### Phase 9 - Plan Mode Redesign
+Fundamentally changes how plan mode works. Currently the AI generates full file contents in a JSON plan upfront (slow). New approach: AI generates a high-level text plan quickly, then on execute, each step makes its own AI API call to generate content for one file at a time (fast incremental feedback).
+
+#### Key Changes
+- **Plan phase**: AI outputs readable text overview (numbered steps with type tags), NOT JSON with file contents
+- **Execution phase**: Each create/edit step sends a focused AI request to generate that file's content, applies it, shows diff, then moves to next step
+- Shell and delete steps execute directly without AI calls
+- New "generating" progress state in UI while AI produces content per step
+
+#### Backend (BE)
+| ID | Title | Description |
+|---|---|---|
+| BE-P9-001 | Redesign Plan Mode System Prompt | Replace JSON plan prompt with text plan prompt, rewrite `parsePlan()` to parse numbered text format |
+| BE-P9-002 | Step-by-Step AI Executor | New executor that makes one AI API call per create/edit step to generate content on demand |
+| BE-P9-003 | Update WS Protocol for Execution | Add "generating" progress state, update execute message flow for content-less steps |
+
+#### Frontend (FE)
+| ID | Title | Description |
+|---|---|---|
+| FE-P9-001 | Redesign PlanView for Text Plans | Simplify PlanView to show text overview, remove content preview/editor |
+| FE-P9-002 | Add "Generating" State to Progress | New visual state in ExecutionProgress for AI content generation per step |
+| FE-P9-003 | Clean Up Plan Store | Remove `updateStepContent()`, simplify types for content-less plan steps |
+
+#### Integration & Review
+| ID | Title | Description |
+|---|---|---|
+| TL-P9-001 | Integration -- Phase 9 | Wire new plan prompt + parser + step-by-step executor + UI end to end |
+| TL-P9-002 | Tech Lead Code Review -- Phase 9 | Security, performance, error handling review |
+
+#### QA
+| ID | Title | Description |
+|---|---|---|
+| MQA-P9-001 | Manual QA -- Phase 9 | Test plan generation, step-by-step execution, cancel, rollback |
+| AQA-P9-001 | E2E Tests -- Phase 9 | Automated tests for new plan/execute flow |

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useChatStore } from "../stores/chatStore";
-import { useExecutionStore } from "../stores/executionStore";
-import { usePlanStore } from "../stores/planStore";
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -19,8 +17,6 @@ export function useWebSocket(onProjectSwitched?: (event: ProjectSwitchedEvent) =
 
   const { addMessage, appendToMessage, finishMessage, addToolCall, setToolResult, setLoading, setConversationId } =
     useChatStore();
-  const { updateStep, appendOutput, setDiff, finishExecution } = useExecutionStore();
-  const { setPlan } = usePlanStore();
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -63,10 +59,6 @@ export function useWebSocket(onProjectSwitched?: (event: ProjectSwitchedEvent) =
           }
           break;
 
-        case "plan:steps":
-          setPlan(msg.plan);
-          break;
-
         case "chat:done":
           if (assistantMsgIdRef.current) {
             finishMessage(assistantMsgIdRef.current);
@@ -75,22 +67,6 @@ export function useWebSocket(onProjectSwitched?: (event: ProjectSwitchedEvent) =
           if (msg.conversationId) {
             setConversationId(msg.conversationId);
           }
-          break;
-
-        case "execute:progress":
-          updateStep(msg.stepId, { status: msg.status, error: msg.error });
-          break;
-
-        case "execute:output":
-          appendOutput(msg.stepId, msg.line);
-          break;
-
-        case "execute:diff":
-          setDiff(msg.stepId, msg.diff, msg.filePath);
-          break;
-
-        case "execute:done":
-          finishExecution(msg.summary);
           break;
 
         case "project:switched":
@@ -130,7 +106,7 @@ export function useWebSocket(onProjectSwitched?: (event: ProjectSwitchedEvent) =
     ws.onerror = () => {
       ws.close();
     };
-  }, [addMessage, appendToMessage, finishMessage, addToolCall, setToolResult, setLoading, setConversationId, updateStep, appendOutput, setDiff, finishExecution, setPlan, onProjectSwitched]);
+  }, [addMessage, appendToMessage, finishMessage, addToolCall, setToolResult, setLoading, setConversationId, onProjectSwitched]);
 
   useEffect(() => {
     connect();

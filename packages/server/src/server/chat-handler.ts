@@ -1,12 +1,11 @@
 import type { WebSocket } from "ws";
 import type { ChatMessage } from "../providers/types.js";
 import { getProvider } from "../providers/index.js";
-import { getToolDefinitions, executeTool } from "../context/tool-handler.js";
+import { getToolDefinitions, executeTool, resetToolExecutionState } from "../context/tool-handler.js";
 import { buildSystemPrompt } from "../context/context-builder.js";
-import { parsePlan, PLAN_MODE_PROMPT } from "../plan/planner.js";
 import { addMessageToHistory, getCurrentConversationId, resetConversation } from "../history/history.js";
 
-const MAX_TOOL_ITERATIONS = 10;
+const MAX_TOOL_ITERATIONS = 25;
 
 const conversationHistory: ChatMessage[] = [];
 let systemPromptLoaded = false;
@@ -27,10 +26,12 @@ export async function chatHandler(socket: WebSocket, message: string) {
   // Inject system prompt on first message
   if (!systemPromptLoaded) {
     const basePrompt = await buildSystemPrompt();
-    const fullPrompt = basePrompt + "\n\n" + PLAN_MODE_PROMPT;
-    conversationHistory.unshift({ role: "system", content: fullPrompt });
+    conversationHistory.unshift({ role: "system", content: basePrompt });
     systemPromptLoaded = true;
   }
+
+  // Reset file write tracking for each user turn
+  resetToolExecutionState();
 
   conversationHistory.push({ role: "user", content: message });
   addMessageToHistory("user", message);
@@ -62,15 +63,6 @@ export async function chatHandler(socket: WebSocket, message: string) {
         if (fullText) {
           conversationHistory.push({ role: "assistant", content: fullText });
           addMessageToHistory("assistant", fullText);
-
-          // Check if the response contains a plan
-          const parseResult = parsePlan(fullText);
-          if (parseResult.plan) {
-            socket.send(JSON.stringify({
-              type: "plan:steps",
-              plan: parseResult.plan,
-            }));
-          }
         }
         const convId = getCurrentConversationId();
         socket.send(JSON.stringify({ type: "chat:done", conversationId: convId }));

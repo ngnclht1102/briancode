@@ -403,6 +403,55 @@ AQA: ████ AQA-P8-001
 
 ---
 
+## Phase 9 — Plan Mode Redesign (10 tickets)
+
+Fundamentally changes plan mode: AI generates a high-level text plan (fast), then execution generates content per file via individual AI API calls (incremental feedback).
+
+### Step 1: Parallel Development (with mocks)
+
+| ID | Title | Assignee | Mocks |
+|----|-------|----------|-------|
+| BE-P9-001 | Redesign Plan Mode System Prompt | BE | Test with AI provider directly |
+| BE-P9-002 | Step-by-Step AI Executor | BE | Mock AI provider returns canned content |
+| BE-P9-003 | Update WS Protocol for Execution | BE | Mock WS clients |
+| FE-P9-001 | Redesign PlanView for Text Plans | FE | Hardcoded sample text plan |
+| FE-P9-002 | Add "Generating" State to Progress | FE | Simulated WS events with generating state |
+| FE-P9-003 | Clean Up Plan Store | FE | No mocks needed |
+| BA-P9-001 | Phase 9 Requirements — Plan Mode Redesign | BA | — |
+
+```
+BE:  ████ BE-P9-001  ████ BE-P9-002  ████ BE-P9-003
+FE:  ████ FE-P9-001  ████ FE-P9-002  ████ FE-P9-003
+BA:  ████ BA-P9-001
+     ──────────── all in parallel ────────────
+```
+
+### Step 2: Integration & Review
+
+| ID | Title | Assignee | Integrates |
+|----|-------|----------|------------|
+| TL-P9-001 | Integration — Phase 9 | TL | Wires new plan prompt + parser + step executor + UI |
+| TL-P9-002 | Tech Lead Code Review — Phase 9 | TL | Security, performance, error handling |
+
+```
+TL:  ████ TL-P9-001 (integrate) ──> ████ TL-P9-002 (review)
+```
+
+### Step 3: Testing & Verification
+
+| ID | Title | Assignee |
+|----|-------|----------|
+| MQA-P9-001 | Manual QA — Phase 9 | MQA |
+| AQA-P9-001 | E2E Tests — Phase 9 | AQA |
+
+```
+MQA: ████ MQA-P9-001
+AQA: ████ AQA-P9-001
+     ──── in parallel ────
+```
+
+---
+
 ## Execution Pattern (every phase)
 
 ```
@@ -435,15 +484,16 @@ AQA: ████ AQA-P8-001
 | 6 - Polish | 11 | 6 | 3 | 2 |
 | 7 - Project Switching | 16 | 12 | 2 | 2 |
 | 8 - Conversations | 16 | 11 | 2 | 2 |
-| **Total** | **97** | **62** | **18** | **16** |
+| 9 - Plan Redesign | 10 | 7 | 2 | 2 |
+| **Total** | **107** | **69** | **20** | **18** |
 
 ### Per-Team Workload
 
 | Role | Total | Step 1 | Step 2 | Step 3 |
 |------|-------|--------|--------|--------|
-| TL | 20 | 2 | 18 | — |
-| BE | 30 | 30 | — | — |
-| FE | 21 | 21 | — | — |
-| BA | 8 | 8 | — | — |
-| MQA | 8 | — | — | 8 |
-| AQA | 9 | 1 | — | 8 |
+| TL | 22 | 2 | 20 | — |
+| BE | 33 | 33 | — | — |
+| FE | 24 | 24 | — | — |
+| BA | 9 | 9 | — | — |
+| MQA | 9 | — | — | 9 |
+| AQA | 10 | 1 | — | 9 |
