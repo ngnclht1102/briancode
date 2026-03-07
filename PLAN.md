@@ -374,3 +374,60 @@ Browser opens:
 - Dark/light theme
 - Keyboard shortcuts (Cmd+Enter to send, etc.)
 - `npm install -g brian-code` distribution
+
+### Phase 7 - Project Switching
+Currently the server is locked to `process.cwd()` at startup. This phase adds the ability to change the active project from the UI without restarting.
+
+#### Backend (BE)
+| ID | Title | Description |
+|---|---|---|
+| BE-P7-001 | POST /api/project/switch | Accept `{ path }`, validate directory exists, call `setProjectRoot()`, invalidate caches, reset context. Return new project info |
+| BE-P7-002 | GET /api/project/current | Return current project root path and directory name |
+| BE-P7-003 | Recent projects persistence | Store last 10 project paths in `~/.brian-code/config.json` under `recentProjects[]`, update on switch |
+| BE-P7-004 | GET /api/project/recent | Return recent projects list with path, name, exists flag |
+| BE-P7-005 | WebSocket broadcast on switch | Send `{ type: "project:switched", path, name }` to all connected clients |
+| BE-P7-006 | Reset server state on switch | Clear session chat history, invalidate file tree cache, reset context builder, clear change tracker |
+
+#### Frontend (FE)
+| ID | Title | Description |
+|---|---|---|
+| FE-P7-001 | Project name in StatusBar | Show current folder name in status bar, clickable to open project switcher |
+| FE-P7-002 | ProjectSwitcher modal | Modal with: current project path, recent projects list, manual path input, switch button |
+| FE-P7-003 | Recent projects list | Show recent projects with name, path, exists indicator. Click to switch, remove stale entries |
+| FE-P7-004 | Handle project:switched WS event | Clear chat, plan, execution state; refresh file tree; update status bar |
+| FE-P7-005 | Keyboard shortcut Cmd/Ctrl+O | Open project switcher modal |
+
+#### QA
+| ID | Title | Description |
+|---|---|---|
+| QA-P7-001 | Test: switch project | Switch between directories, verify file tree updates, chat resets, context reflects new project |
+| QA-P7-002 | Test: recent projects | Verify list persists across restarts, stale paths show indicator |
+| QA-P7-003 | Test: invalid path | Enter non-existent path, verify error shown |
+
+### Phase 8 - Conversation Management
+Multiple conversations per project with persistent history. Users can create, switch between, and delete conversations. Each project has its own conversation list.
+
+#### Backend (BE)
+| ID | Title | Description |
+|---|---|---|
+| BE-P8-001 | Wire history into chat handler | Connect `addMessageToHistory()` to chat handler so all messages auto-persist to disk |
+| BE-P8-002 | Load conversation endpoint | `POST /api/conversation/load/:id` — load saved conversation messages back into active chat context |
+| BE-P8-003 | Delete conversation endpoint | `DELETE /api/history/:id` — delete conversation from disk, sanitize ID |
+| BE-P8-004 | Filter history by project | `GET /api/history` returns only conversations for current project by default |
+| BE-P8-005 | New conversation endpoint | `POST /api/conversation/new` — reset chat state, start fresh conversation, return ID |
+
+#### Frontend (FE)
+| ID | Title | Description |
+|---|---|---|
+| FE-P8-001 | Conversation list sidebar | History panel in sidebar showing conversations for current project |
+| FE-P8-002 | Load conversation UI | Click conversation in list to load messages into chat view |
+| FE-P8-003 | Delete conversation UI | Delete button with confirmation on each conversation entry |
+| FE-P8-004 | New conversation button | "New Chat" button + wire Cmd+N to create new conversation on backend |
+| FE-P8-005 | Active conversation indicator | Highlight active conversation in list, show title in UI |
+
+#### QA
+| ID | Title | Description |
+|---|---|---|
+| QA-P8-001 | Test: conversation CRUD | Create, persist, delete conversations |
+| QA-P8-002 | Test: load conversation | Load past conversation, verify messages and AI context |
+| QA-P8-003 | Test: project isolation | Conversations filtered by project after switching |

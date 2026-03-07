@@ -300,6 +300,109 @@ AQA: ████ AQA-P6-009 (full regression)
 
 ---
 
+## Phase 7 — Project Switching (16 tickets)
+
+### Step 1: Parallel Development (with mocks)
+
+| ID | Title | Assignee | Mocks |
+|----|-------|----------|-------|
+| BE-P7-001 | POST /api/project/switch Endpoint | BE | Test with temp directories |
+| BE-P7-002 | GET /api/project/current Endpoint | BE | Standalone, no mocks |
+| BE-P7-003 | Recent Projects Persistence | BE | Direct config file read/write |
+| BE-P7-004 | GET /api/project/recent Endpoint | BE | Seeded config data |
+| BE-P7-005 | WebSocket Broadcast on Project Switch | BE | Mock WS clients |
+| BE-P7-006 | Reset Server State on Project Switch | BE | Call reset functions directly |
+| FE-P7-001 | Project Name in StatusBar | FE | Hardcoded project name |
+| FE-P7-002 | ProjectSwitcher Modal Component | FE | Mock API responses |
+| FE-P7-003 | Recent Projects List in Modal | FE | Hardcoded sample projects |
+| FE-P7-004 | Handle project:switched WS Event | FE | Simulated WS events |
+| FE-P7-005 | Keyboard Shortcut Cmd/Ctrl+O | FE | No mocks needed |
+| BA-P7-001 | Phase 7 Requirements — Project Switching | BA | — |
+
+```
+BE:  ████ BE-P7-001  ████ BE-P7-002  ████ BE-P7-003  ████ BE-P7-004  ████ BE-P7-005  ████ BE-P7-006
+FE:  ████ FE-P7-001  ████ FE-P7-002  ████ FE-P7-003  ████ FE-P7-004  ████ FE-P7-005
+BA:  ████ BA-P7-001
+     ──────────── all in parallel ────────────
+```
+
+### Step 2: Integration & Review
+
+| ID | Title | Assignee | Integrates |
+|----|-------|----------|------------|
+| TL-P7-001 | Integration — Phase 7 | TL | Wires all endpoints + modal + WS events + state reset |
+| TL-P7-002 | Tech Lead Code Review — Phase 7 | TL | Security audit (path validation, state isolation) |
+
+```
+TL:  ████ TL-P7-001 (integrate) ──> ████ TL-P7-002 (review)
+```
+
+### Step 3: Testing & Verification
+
+| ID | Title | Assignee |
+|----|-------|----------|
+| MQA-P7-001 | Manual QA — Phase 7 | MQA |
+| AQA-P7-001 | E2E Tests — Phase 7 | AQA |
+
+```
+MQA: ████ MQA-P7-001
+AQA: ████ AQA-P7-001
+     ──── in parallel ────
+```
+
+---
+
+## Phase 8 — Conversation Management (16 tickets)
+
+### Step 1: Parallel Development (with mocks)
+
+| ID | Title | Assignee | Mocks |
+|----|-------|----------|-------|
+| BE-P8-001 | Wire History into Chat Handler | BE | Test by checking history files on disk |
+| BE-P8-002 | Load Conversation Endpoint | BE | Create conversation files manually |
+| BE-P8-003 | Delete Conversation Endpoint | BE | Create then delete test files |
+| BE-P8-004 | Filter History by Project | BE | Seed conversations with different project paths |
+| BE-P8-005 | New Conversation Endpoint | BE | Test via curl |
+| FE-P8-001 | Conversation List Sidebar Panel | FE | Hardcoded sample conversations |
+| FE-P8-002 | Load Conversation from History | FE | Hardcoded loaded messages |
+| FE-P8-003 | Delete Conversation UI | FE | Mock DELETE API response |
+| FE-P8-004 | New Conversation Button | FE | Mock POST API response |
+| FE-P8-005 | Active Conversation Indicator | FE | Hardcoded active ID |
+| BA-P8-001 | Phase 8 Requirements — Conversation Management | BA | — |
+
+```
+BE:  ████ BE-P8-001  ████ BE-P8-002  ████ BE-P8-003  ████ BE-P8-004  ████ BE-P8-005
+FE:  ████ FE-P8-001  ████ FE-P8-002  ████ FE-P8-003  ████ FE-P8-004  ████ FE-P8-005
+BA:  ████ BA-P8-001
+     ──────────── all in parallel ────────────
+```
+
+### Step 2: Integration & Review
+
+| ID | Title | Assignee | Integrates |
+|----|-------|----------|------------|
+| TL-P8-001 | Integration — Phase 8 | TL | Wires history into chat + all endpoints + sidebar + conversation switching |
+| TL-P8-002 | Tech Lead Code Review — Phase 8 | TL | Security audit (ID sanitization, file permissions, path traversal) |
+
+```
+TL:  ████ TL-P8-001 (integrate) ──> ████ TL-P8-002 (review)
+```
+
+### Step 3: Testing & Verification
+
+| ID | Title | Assignee |
+|----|-------|----------|
+| MQA-P8-001 | Manual QA — Phase 8 | MQA |
+| AQA-P8-001 | E2E Tests — Phase 8 | AQA |
+
+```
+MQA: ████ MQA-P8-001
+AQA: ████ AQA-P8-001
+     ──── in parallel ────
+```
+
+---
+
 ## Execution Pattern (every phase)
 
 ```
@@ -330,15 +433,17 @@ AQA: ████ AQA-P6-009 (full regression)
 | 4 - Execution | 10 | 6 | 2 | 2 |
 | 5 - Multi-Provider | 9 | 5 | 2 | 2 |
 | 6 - Polish | 11 | 6 | 3 | 2 |
-| **Total** | **65** | **39** | **14** | **12** |
+| 7 - Project Switching | 16 | 12 | 2 | 2 |
+| 8 - Conversations | 16 | 11 | 2 | 2 |
+| **Total** | **97** | **62** | **18** | **16** |
 
 ### Per-Team Workload
 
 | Role | Total | Step 1 | Step 2 | Step 3 |
 |------|-------|--------|--------|--------|
-| TL | 16 | 2 | 14 | — |
-| BE | 19 | 19 | — | — |
-| FE | 11 | 11 | — | — |
-| BA | 6 | 6 | — | — |
-| MQA | 6 | — | — | 6 |
-| AQA | 7 | 1 | — | 6 |
+| TL | 20 | 2 | 18 | — |
+| BE | 30 | 30 | — | — |
+| FE | 21 | 21 | — | — |
+| BA | 8 | 8 | — | — |
+| MQA | 8 | — | — | 8 |
+| AQA | 9 | 1 | — | 8 |

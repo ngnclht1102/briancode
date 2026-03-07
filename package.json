@@ -1,0 +1,21 @@
+{
+  "name": "brian-code",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI coding assistant with web UI",
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "build": "pnpm -r run build",
+    "build:prod": "pnpm --filter web build && pnpm --filter server build && node scripts/bundle.js",
+    "start": "pnpm --filter @brian-code/server run start",
+    "test:e2e": "pnpm --filter @brian-code/e2e run test",
+    "lint": "pnpm -r run lint"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
