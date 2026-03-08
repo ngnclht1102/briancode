@@ -3,6 +3,7 @@ import { getConfig } from "../config.js";
 import { DeepSeekProvider } from "./deepseek.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { OpenAICompatProvider, PROVIDER_PRESETS } from "./openai-compat.js";
+import { log } from "../logger.js";
 
 let currentProvider: AIProvider | null = null;
 
@@ -10,8 +11,11 @@ function createProvider(name: string): AIProvider {
   const config = getConfig();
   const provConfig = config.providers[name];
   if (!provConfig?.apiKey && name !== "ollama") {
+    log.provider.error(`No API key for provider "${name}"`);
     throw new Error(`No API key configured for provider "${name}". Set it in config or environment.`);
   }
+
+  log.provider.info(`Creating provider: ${name} (model: ${provConfig?.model ?? "default"})`);
 
   switch (name) {
     case "deepseek":
@@ -41,6 +45,7 @@ function createProvider(name: string): AIProvider {
 export function getProvider(): AIProvider {
   if (!currentProvider) {
     const config = getConfig();
+    log.provider.info(`Initializing default provider: ${config.defaultProvider}`);
     currentProvider = createProvider(config.defaultProvider);
   }
   return currentProvider;
@@ -51,6 +56,7 @@ export function setProvider(provider: AIProvider) {
 }
 
 export function switchProvider(name: string): AIProvider {
+  log.provider.info(`Switching provider to: ${name}`);
   currentProvider = createProvider(name);
   return currentProvider;
 }

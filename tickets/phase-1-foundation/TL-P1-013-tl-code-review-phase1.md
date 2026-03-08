@@ -12,7 +12,7 @@ Review all Phase 1 code for quality, architecture consistency, and standards com
 
 ### Architecture
 - [ ] Project structure matches PLAN.md
-- [ ] pnpm workspace configured correctly
+- [ ] yarn workspace configured correctly
 - [ ] Clean separation between server and web packages
 - [ ] No circular dependencies between modules
 

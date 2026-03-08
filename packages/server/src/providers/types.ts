@@ -4,9 +4,22 @@ export interface ToolCallEntry {
   function: { name: string; arguments: string };
 }
 
+export interface TextContent {
+  type: "text";
+  text: string;
+}
+
+export interface ImageContent {
+  type: "image";
+  mimeType: string;
+  data: string;
+}
+
+export type MessageContent = string | Array<TextContent | ImageContent>;
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  content: MessageContent;
   tool_call_id?: string;
   tool_calls?: ToolCallEntry[];
 }
@@ -24,6 +37,8 @@ export type StreamEvent =
 
 export interface AIProvider {
   name: string;
+  /** Whether this provider supports image/vision input */
+  supportsVision?: boolean;
   chat(
     messages: ChatMessage[],
     tools?: Tool[],

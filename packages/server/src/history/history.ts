@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { getProjectRoot } from "../context/workspace.js";
+import { log } from "../logger.js";
 
 const HISTORY_DIR = path.join(os.homedir(), ".brian-code", "history");
 const MAX_CONVERSATIONS = 50;
@@ -53,6 +54,7 @@ export function startConversation(): Conversation {
     title: "New Chat",
     messages: [],
   };
+  log.history.start(`New conversation: ${id}`);
   return currentConversation;
 }
 
@@ -109,8 +111,11 @@ export function loadConversation(id: string): Conversation | null {
   if (!isValidId(id)) return null;
   const filePath = path.join(HISTORY_DIR, `${id}.json`);
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    const conv = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    log.history.info(`Loaded conversation: ${id} (${conv.messages?.length ?? 0} messages)`);
+    return conv;
   } catch {
+    log.history.error(`Failed to load conversation: ${id}`);
     return null;
   }
 }
@@ -124,8 +129,10 @@ export function deleteConversation(id: string): boolean {
     if (currentConversation?.id === id) {
       currentConversation = null;
     }
+    log.history.info(`Deleted conversation: ${id}`);
     return true;
   } catch {
+    log.history.error(`Failed to delete conversation: ${id}`);
     return false;
   }
 }

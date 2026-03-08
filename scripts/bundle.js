@@ -11,7 +11,7 @@ const serverWebDist = path.join(root, "packages/server/dist/web");
 
 // Copy web dist into server dist
 if (!fs.existsSync(webDist)) {
-  console.error("Error: packages/web/dist not found. Run `pnpm --filter web build` first.");
+  console.error("Error: packages/web/dist not found. Run `yarn workspace @brian-code/web build` first.");
   process.exit(1);
 }
 

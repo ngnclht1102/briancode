@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { getProjectRoot, resolveProjectPath } from "../context/workspace.js";
 import { recordChange } from "./change-tracker.js";
+import { log } from "../logger.js";
 
 export interface FileOpResult {
   success: boolean;
@@ -19,7 +20,10 @@ export function setExecutionId(id: string) {
 
 export function createFile(relativePath: string, content: string): FileOpResult {
   const absPath = resolveProjectPath(relativePath);
-  if (!absPath) return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  if (!absPath) {
+    log.file.error(`Path traversal blocked: ${relativePath}`);
+    return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  }
 
   try {
     // Backup: if file already exists, store its content; if not, mark as null (new file)
@@ -40,9 +44,11 @@ export function createFile(relativePath: string, content: string): FileOpResult 
     fs.writeFileSync(absPath, content, "utf-8");
 
     recordChange(currentExecutionId, relativePath, "create", before, content);
+    log.file.info(`Created: ${relativePath} (${content.split("\n").length} lines)`);
     const diff = formatDiff(relativePath, "", content);
     return { success: true, diff };
   } catch (err) {
+    log.file.error(`Create failed: ${relativePath} — ${String(err)}`);
     return { success: false, diff: "", error: String(err) };
   }
 }
@@ -52,9 +58,13 @@ export function editFile(
   newContent: string,
 ): FileOpResult {
   const absPath = resolveProjectPath(relativePath);
-  if (!absPath) return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  if (!absPath) {
+    log.file.error(`Path traversal blocked: ${relativePath}`);
+    return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  }
 
   if (!fs.existsSync(absPath)) {
+    log.file.error(`File not found: ${relativePath}`);
     return { success: false, diff: "", error: `File not found: ${relativePath}` };
   }
 
@@ -74,16 +84,21 @@ export function editFile(
     fs.writeFileSync(absPath, newContent, "utf-8");
 
     recordChange(currentExecutionId, relativePath, "edit", original, newContent);
+    log.file.info(`Edited: ${relativePath} (${newContent.split("\n").length} lines)`);
     const diff = formatDiff(relativePath, original, newContent);
     return { success: true, diff };
   } catch (err) {
+    log.file.error(`Edit failed: ${relativePath} — ${String(err)}`);
     return { success: false, diff: "", error: String(err) };
   }
 }
 
 export function deleteFile(relativePath: string): FileOpResult {
   const absPath = resolveProjectPath(relativePath);
-  if (!absPath) return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  if (!absPath) {
+    log.file.error(`Path traversal blocked: ${relativePath}`);
+    return { success: false, diff: "", error: `Path traversal blocked: ${relativePath}` };
+  }
 
   if (!fs.existsSync(absPath)) {
     return { success: false, diff: "", error: `File not found: ${relativePath}` };
@@ -100,14 +115,17 @@ export function deleteFile(relativePath: string): FileOpResult {
     fs.unlinkSync(absPath);
 
     recordChange(currentExecutionId, relativePath, "delete", original, null);
+    log.file.info(`Deleted: ${relativePath}`);
     const diff = formatDiff(relativePath, original, "");
     return { success: true, diff };
   } catch (err) {
+    log.file.error(`Delete failed: ${relativePath} — ${String(err)}`);
     return { success: false, diff: "", error: String(err) };
   }
 }
 
 export function rollbackAll(): { restored: string[]; errors: string[] } {
+  log.file.start(`Rolling back ${backups.size} file(s)`);
   const restored: string[] = [];
   const errors: string[] = [];
   const root = getProjectRoot();
@@ -132,6 +150,7 @@ export function rollbackAll(): { restored: string[]; errors: string[] } {
   }
 
   backups.clear();
+  log.file.done(`Rollback: ${restored.length} restored, ${errors.length} errors`);
   return { restored, errors };
 }
 

@@ -71,6 +71,8 @@ export function useWebSocket(onProjectSwitched?: (event: ProjectSwitchedEvent) =
 
         case "project:switched":
           onProjectSwitched?.({ path: msg.path, name: msg.name });
+          // Also refresh file list so @ mentions get updated
+          window.dispatchEvent(new CustomEvent("filetree:refresh"));
           break;
 
         case "files:changed":

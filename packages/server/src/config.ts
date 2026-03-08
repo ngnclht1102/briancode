@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { getProjectRoot } from "./context/workspace.js";
+import { log } from "./logger.js";
 
 export interface ProviderConfig {
   apiKey?: string;
@@ -51,6 +52,7 @@ function readJsonFile(filePath: string): Partial<AppConfig> | null {
 }
 
 export function loadConfig(cliOverrides?: { provider?: string; model?: string }): AppConfig {
+  log.config.start("Loading config");
   ensureConfigDir();
 
   // 1. Start with defaults
@@ -65,6 +67,7 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
         config.providers[name] = { ...config.providers[name], ...provConfig };
       }
     }
+    log.config.info("Loaded global config");
   }
 
   // 3. Project-level config
@@ -77,6 +80,7 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
         config.providers[name] = { ...config.providers[name], ...provConfig };
       }
     }
+    log.config.info("Loaded project config");
   }
 
   // 4. Environment variables
@@ -89,6 +93,7 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
     if (val) {
       if (!config.providers[providerName]) config.providers[providerName] = {};
       config.providers[providerName].apiKey = val;
+      log.config.info(`API key loaded from ${envVar}`);
     }
   }
 
@@ -100,6 +105,7 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
   }
 
   cachedConfig = config;
+  log.config.done(`Config loaded (provider: ${config.defaultProvider})`);
   return config;
 }
 
@@ -123,6 +129,7 @@ export function saveConfig(updates: Partial<AppConfig>) {
   }
 
   fs.writeFileSync(GLOBAL_CONFIG_FILE, JSON.stringify(existing, null, 2), { mode: 0o600 });
+  log.config.info("Config saved");
 
   // Reload
   cachedConfig = null;

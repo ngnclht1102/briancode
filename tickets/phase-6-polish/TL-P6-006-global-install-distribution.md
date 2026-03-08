@@ -12,7 +12,7 @@ Package the app for distribution via npm global install. Build pipeline that bun
 - [ ] Build script: compiles TypeScript backend + bundles React frontend
 - [ ] Server serves bundled frontend from `dist/web/` in production mode
 - [ ] `package.json` `bin` field: `{ "brian-code": "./bin/brian.js" }`
-- [ ] `npm install -g brian-code` (or `pnpm add -g brian-code`) works
+- [ ] `npm install -g brian-code` (or `yarn add -g brian-code`) works
 - [ ] After install: `brian-code` command available globally
 - [ ] Verify on clean machine: install, run, open browser, chat works
 - [ ] `.npmignore` or `files` field to exclude source, include only dist

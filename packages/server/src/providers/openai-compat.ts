@@ -1,4 +1,6 @@
 import type { AIProvider, ChatMessage, StreamEvent, Tool } from "./types.js";
+import { convertToOpenAIContent } from "./message-converter.js";
+import { log } from "../logger.js";
 
 export interface OpenAICompatOptions {
   name: string;
@@ -9,6 +11,7 @@ export interface OpenAICompatOptions {
 
 export class OpenAICompatProvider implements AIProvider {
   name: string;
+  supportsVision = true;
   private apiKey: string;
   private model: string;
   private baseUrl: string;
@@ -21,9 +24,13 @@ export class OpenAICompatProvider implements AIProvider {
   }
 
   async *chat(messages: ChatMessage[], tools?: Tool[]): AsyncIterable<StreamEvent> {
+    const convertedMessages = messages.map((msg) => ({
+      ...msg,
+      content: convertToOpenAIContent(msg.content),
+    }));
     const body: Record<string, unknown> = {
       model: this.model,
-      messages,
+      messages: convertedMessages,
       stream: true,
     };
 
@@ -38,7 +45,10 @@ export class OpenAICompatProvider implements AIProvider {
       }));
     }
 
-    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+    const url = `${this.baseUrl}/v1/chat/completions`;
+    log.provider.start(`${this.name === 'deepseek' ? 'cursor' : this.name} API call → ${this.model}`);
+
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,8 +59,11 @@ export class OpenAICompatProvider implements AIProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`${this.name} API error (${res.status}): ${text}`);
+      log.provider.error(`${this.name === 'deepseek' ? 'cursor' : this.name} API error (${res.status}): ${text.slice(0, 200)}`);
+      throw new Error(`${this.name === 'deepseek' ? 'cursor' : this.name} API error (${res.status}): ${text}`);
     }
+
+    log.provider.info(`${this.name === 'deepseek' ? 'cursor' : this.name} API response: ${res.status} — streaming`);
 
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
@@ -77,6 +90,7 @@ export class OpenAICompatProvider implements AIProvider {
             try { args = JSON.parse(tc.args); } catch {}
             yield { type: "tool_call", id: tc.id, name: tc.name, args };
           }
+          log.provider.done(`${this.name === 'deepseek' ? 'cursor' : this.name} stream finished`);
           yield { type: "done" };
           return;
         }

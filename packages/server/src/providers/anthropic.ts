@@ -1,7 +1,10 @@
 import type { AIProvider, ChatMessage, StreamEvent, Tool } from "./types.js";
+import { convertToAnthropicContent } from "./message-converter.js";
+import { log } from "../logger.js";
 
 export class AnthropicProvider implements AIProvider {
   name = "anthropic";
+  supportsVision = true;
   private apiKey: string;
   private model: string;
   private baseUrl: string;
@@ -19,7 +22,7 @@ export class AnthropicProvider implements AIProvider {
 
     for (const msg of messages) {
       if (msg.role === "system") {
-        system = msg.content;
+        system = typeof msg.content === "string" ? msg.content : msg.content.filter(b => b.type === "text").map(b => (b as { text: string }).text).join("\n");
         continue;
       }
 
@@ -50,7 +53,7 @@ export class AnthropicProvider implements AIProvider {
           }],
         });
       } else {
-        apiMessages.push({ role: msg.role, content: msg.content });
+        apiMessages.push({ role: msg.role, content: convertToAnthropicContent(msg.content) });
       }
     }
 
@@ -71,6 +74,8 @@ export class AnthropicProvider implements AIProvider {
       }));
     }
 
+    log.provider.start(`Anthropic API call → ${this.model}`);
+
     const res = await fetch(`${this.baseUrl}/v1/messages`, {
       method: "POST",
       headers: {
@@ -83,8 +88,11 @@ export class AnthropicProvider implements AIProvider {
 
     if (!res.ok) {
       const text = await res.text();
+      log.provider.error(`Anthropic API error (${res.status}): ${text.slice(0, 200)}`);
       throw new Error(`Anthropic API error (${res.status}): ${text}`);
     }
+
+    log.provider.info(`Anthropic API response: ${res.status} — streaming`);
 
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
@@ -144,6 +152,7 @@ export class AnthropicProvider implements AIProvider {
               break;
             }
             case "message_stop":
+              log.provider.done("Anthropic stream finished");
               yield { type: "done" };
               return;
           }

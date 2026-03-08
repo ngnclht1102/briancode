@@ -4,6 +4,7 @@ import { searchFiles } from "./search.js";
 import { listDirectory, getGitDiff } from "./git.js";
 import { createFile, editFile, deleteFile, setExecutionId, clearBackups } from "../executor/file-ops.js";
 import { runCommand } from "../executor/shell-ops.js";
+import { log } from "../logger.js";
 
 export interface ToolDefinition {
   tool: Tool;
@@ -162,8 +163,11 @@ const tools: ToolDefinition[] = [
       const command = args.command as string;
       const result = await runCommand(command);
       const output = result.output ? `\n${result.output}` : "";
+      if (result.error?.includes("timed out")) {
+        return `Command timed out: ${result.error}${output ? `\n\nPartial output:${output}` : ""}`;
+      }
       if (result.exitCode !== 0) {
-        return `Command failed (exit ${result.exitCode}):${output}${result.error ? `\n${result.error}` : ""}`;
+        return `Command failed (exit ${result.exitCode}):${output}${result.error ? `\nError: ${result.error}` : ""}`;
       }
       return `Command succeeded:${output}`;
     },
@@ -193,10 +197,15 @@ export async function executeTool(
   args: Record<string, unknown>,
 ): Promise<string> {
   const tool = tools.find((t) => t.tool.name === name);
-  if (!tool) return `Error: Unknown tool "${name}"`;
+  if (!tool) {
+    log.tool.error(`Unknown tool: "${name}"`);
+    return `Error: Unknown tool "${name}"`;
+  }
   try {
-    return await tool.handler(args);
+    const result = await tool.handler(args);
+    return result;
   } catch (err) {
+    log.tool.error(`${name} failed: ${String(err)}`);
     return `Error executing ${name}: ${String(err)}`;
   }
 }

@@ -9,7 +9,7 @@
 Set up the Playwright test infrastructure for automated browser-based E2E testing.
 
 ## Acceptance Criteria
-- [ ] `packages/e2e/` package in pnpm workspace
+- [ ] `packages/e2e/` package in yarn workspace
 - [ ] Playwright installed and configured (`playwright.config.ts`)
 - [ ] Browsers: Chromium, Firefox, WebKit
 - [ ] Test helpers:
@@ -18,7 +18,7 @@ Set up the Playwright test infrastructure for automated browser-based E2E testin
   - `waitForWebSocket()` — waits for WS connection to be established
 - [ ] Global setup: start server, global teardown: stop server
 - [ ] Base test fixture: `brianPage` that navigates to app and waits for ready state
-- [ ] `pnpm test:e2e` script in root package.json
+- [ ] `yarn test:e2e` script in root package.json
 - [ ] CI-ready: headless mode by default, headed via `--headed` flag
 - [ ] Screenshot on failure (auto-captured by Playwright)
 - [ ] Test report: HTML reporter configured

@@ -26,4 +26,4 @@ Set up Fastify HTTP server with WebSocket support. The server serves the static 
 - **Do NOT wait for TL-P1-001 (scaffolding)**
 - Develop as standalone Node.js project with its own `package.json`
 - Mock WebSocket client: write simple test script that connects and sends messages
-- Will be merged into pnpm workspace during TL-P1-014 (integration)
+- Will be merged into yarn workspace during TL-P1-014 (integration)

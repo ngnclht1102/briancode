@@ -225,8 +225,8 @@ Server -> Client:
 
 ```
 brian-code/
-├── package.json                # Root: pnpm workspace config
-├── pnpm-workspace.yaml         # Declares packages/*
+├── package.json                # Root: yarn workspace config
+├── yarn-workspace.yaml         # Declares packages/*
 ├── packages/
 │   ├── server/                 # Backend package
 │   │   ├── package.json
@@ -315,8 +315,8 @@ Browser opens:
 
 | Concern         | Choice                  | Why                              |
 |-----------------|-------------------------|----------------------------------|
-| Package manager | pnpm                    | Fast, disk-efficient, workspace support |
-| Monorepo        | pnpm workspaces         | Native, no extra tooling needed  |
+| Package manager | yarn                    | Fast, disk-efficient, workspace support |
+| Monorepo        | yarn workspaces         | Native, no extra tooling needed  |
 | Backend         | Node.js + TypeScript    | Native fs access, ecosystem      |
 | HTTP server     | Fastify                 | Fast, plugin-based, TS support   |
 | Real-time       | WebSocket (@fastify/ws) | Streaming AI + live progress     |
@@ -332,12 +332,12 @@ Browser opens:
 ## Implementation Phases
 
 ### Phase 1 - Foundation
-- Scaffold pnpm workspace: root package.json + pnpm-workspace.yaml
+- Scaffold yarn workspace: root package.json + yarn-workspace.yaml
 - `packages/server` — Fastify server with WebSocket
 - `packages/web` — React + Vite frontend with basic chat UI
 - Connect frontend to backend via WebSocket
 - Integrate DeepSeek provider, stream AI responses to browser
-- Scripts: `pnpm dev` (runs both), `pnpm build`, `pnpm start`
+- Scripts: `yarn dev` (runs both), `yarn build`, `yarn start`
 
 ### Phase 2 - Context & Tools
 - File tree scanning (fast-glob, respecting .gitignore)

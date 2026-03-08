@@ -48,3 +48,30 @@ export function readFile(
 
   return result;
 }
+
+const MAX_RAW_BYTES = 50_000;
+
+export function readFileRaw(relativePath: string, maxBytes = MAX_RAW_BYTES): string {
+  const absPath = resolveProjectPath(relativePath);
+  if (!absPath) return `Error: Path traversal blocked for "${relativePath}"`;
+
+  if (!fs.existsSync(absPath)) return `Error: File not found: ${relativePath}`;
+
+  const stat = fs.statSync(absPath);
+  if (!stat.isFile()) return `Error: Not a file: ${relativePath}`;
+
+  // Binary detection
+  const sample = Buffer.alloc(512);
+  const fd = fs.openSync(absPath, "r");
+  const bytesRead = fs.readSync(fd, sample, 0, 512, 0);
+  fs.closeSync(fd);
+  for (let i = 0; i < bytesRead; i++) {
+    if (sample[i] === 0) return `[Binary file, ${stat.size} bytes]`;
+  }
+
+  const content = fs.readFileSync(absPath, "utf-8");
+  if (content.length > maxBytes) {
+    return content.slice(0, maxBytes) + `\n\n... (truncated, file is ${content.length} characters)`;
+  }
+  return content;
+}

@@ -15,7 +15,7 @@ Scaffold the React frontend with Vite and Tailwind CSS. Create the basic app she
 - [ ] Basic responsive layout (works on 1024px+)
 - [ ] `globals.css` with Tailwind directives and base styles
 - [ ] Dev server runs on port 5173, proxies `/api` and `/ws` to backend
-- [ ] `pnpm dev` from root starts both backend and frontend
+- [ ] `yarn dev` from root starts both backend and frontend
 
 ## Notes
 - Use Tailwind v4 if stable, otherwise v3

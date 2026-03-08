@@ -19,7 +19,7 @@ All teams work simultaneously. Each ticket mocks its dependencies.
 
 | ID | Title | Assignee | Mocks |
 |----|-------|----------|-------|
-| TL-P1-001 | Project Scaffolding & pnpm Workspace | TL | — (no deps) |
+| TL-P1-001 | Project Scaffolding & yarn Workspace | TL | — (no deps) |
 | BE-P1-002 | Fastify Server with WebSocket | BE | Standalone project, mock WS client |
 | BE-P1-003 | CLI Entry Point & Browser Auto-Open | BE | Mock server with minimal HTTP placeholder |
 | BE-P1-007 | DeepSeek AI Provider Integration | BE | Standalone module, test with own script |
@@ -472,6 +472,55 @@ AQA: ████ AQA-P9-001
 
 ---
 
+## Phase 10 — File Mentions & Attachments (11 tickets)
+
+Users can mention project files with `@`, upload documents (including PDF), and upload images for multimodal AI analysis.
+
+### Step 1: Parallel Development (with mocks)
+
+| ID | Title | Assignee | Mocks |
+|----|-------|----------|-------|
+| FE-P10-001 | @ File Mention Popup Component | FE | Hardcoded file list |
+| FE-P10-002 | Attachment Button & File Upload UI | FE | Client-side file reading, mock PDF upload |
+| FE-P10-003 | Update Message Format with Attachments | FE | Depends on FE-P10-001/002 |
+| BE-P10-001 | File Upload Endpoint & PDF Extraction | BE | Test with curl, sample PDFs |
+| BE-P10-002 | Chat Handler Attachment Processing | BE | Mock attachment payloads |
+| BE-P10-003 | Provider Multimodal Support (Images) | BE | Mock multimodal messages |
+| BA-P10-001 | Phase 10 Requirements — File Mentions & Attachments | BA | — |
+
+```
+FE:  ████ FE-P10-001  ████ FE-P10-002  ──> ████ FE-P10-003
+BE:  ████ BE-P10-001  ████ BE-P10-002  ████ BE-P10-003
+BA:  ████ BA-P10-001
+     ──────────── mostly parallel ────────────
+```
+
+### Step 2: Integration & Review
+
+| ID | Title | Assignee | Integrates |
+|----|-------|----------|------------|
+| TL-P10-001 | Integration — Phase 10 | TL | Wires mentions + uploads + attachments + multimodal providers |
+| TL-P10-002 | Tech Lead Code Review — Phase 10 | TL | Security (path traversal, upload validation), performance |
+
+```
+TL:  ████ TL-P10-001 (integrate) ──> ████ TL-P10-002 (review)
+```
+
+### Step 3: Testing & Verification
+
+| ID | Title | Assignee |
+|----|-------|----------|
+| MQA-P10-001 | Manual QA — Phase 10 | MQA |
+| AQA-P10-001 | E2E Tests — Phase 10 | AQA |
+
+```
+MQA: ████ MQA-P10-001
+AQA: ████ AQA-P10-001
+     ──── in parallel ────
+```
+
+---
+
 ## Summary
 
 | Phase | Total | Step 1 (Dev) | Step 2 (Integration) | Step 3 (QA) |
@@ -485,15 +534,16 @@ AQA: ████ AQA-P9-001
 | 7 - Project Switching | 16 | 12 | 2 | 2 |
 | 8 - Conversations | 16 | 11 | 2 | 2 |
 | 9 - Plan Redesign | 10 | 7 | 2 | 2 |
-| **Total** | **107** | **69** | **20** | **18** |
+| 10 - File Mentions & Attachments | 11 | 7 | 2 | 2 |
+| **Total** | **118** | **76** | **22** | **20** |
 
 ### Per-Team Workload
 
 | Role | Total | Step 1 | Step 2 | Step 3 |
 |------|-------|--------|--------|--------|
-| TL | 22 | 2 | 20 | — |
-| BE | 33 | 33 | — | — |
-| FE | 24 | 24 | — | — |
-| BA | 9 | 9 | — | — |
-| MQA | 9 | — | — | 9 |
-| AQA | 10 | 1 | — | 9 |
+| TL | 24 | 2 | 22 | — |
+| BE | 36 | 36 | — | — |
+| FE | 27 | 27 | — | — |
+| BA | 10 | 10 | — | — |
+| MQA | 10 | — | — | 10 |
+| AQA | 11 | 1 | — | 10 |

@@ -11,8 +11,8 @@ Integrate all Phase 1 components built in parallel with mocks into a working end
 ## Integration Tasks
 
 ### 1. Workspace Integration
-- [ ] Merge standalone server and web packages into pnpm workspace (TL-P1-001)
-- [ ] Ensure `pnpm dev` starts both backend and frontend
+- [ ] Merge standalone server and web packages into yarn workspace (TL-P1-001)
+- [ ] Ensure `yarn dev` starts both backend and frontend
 - [ ] Configure Vite proxy to forward `/api` and `/ws` to Fastify
 
 ### 2. WebSocket Wiring
@@ -36,7 +36,7 @@ Integrate all Phase 1 components built in parallel with mocks into a working end
 - [ ] `brian-code` command starts everything correctly
 
 ## Acceptance Criteria
-- [ ] `pnpm dev` starts both server and frontend
+- [ ] `yarn dev` starts both server and frontend
 - [ ] Browser connects via WebSocket, status shows "Connected"
 - [ ] User sends message, AI response streams in real-time
 - [ ] Multi-turn chat works

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useChatStore } from "./stores/chatStore";
+import type { MessageAttachment } from "./stores/chatStore";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import Chat from "./components/Chat";
@@ -10,24 +11,30 @@ import FileTree from "./components/FileTree";
 import ShortcutsHelp from "./components/ShortcutsHelp";
 import ProjectSwitcher from "./components/ProjectSwitcher";
 import ConversationHistory from "./components/ConversationHistory";
+import CodeView from "./components/CodeView";
 
 export default function App() {
   const addMessage = useChatStore((s) => s.addMessage);
   const setLoading = useChatStore((s) => s.setLoading);
   const clearMessages = useChatStore((s) => s.clearMessages);
+  const deleteMessageAndAfter = useChatStore((s) => s.deleteMessageAndAfter);
+  const regenerateFrom = useChatStore((s) => s.regenerateFrom);
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
   const [providerName, setProviderName] = useState("deepseek");
+  const [supportsVision, setSupportsVision] = useState(false);
   const [projectInfo, setProjectInfo] = useState<{ path: string; name: string }>({ path: "", name: "" });
   const [fileTreeKey, setFileTreeKey] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"files" | "history">("files");
+  const [openFile, setOpenFile] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleProjectSwitched = useCallback((event: { path: string; name: string }) => {
     setProjectInfo(event);
     clearMessages();
+    setOpenFile(null);
     setFileTreeKey((k) => k + 1);
   }, [clearMessages]);
 
@@ -36,8 +43,9 @@ export default function App() {
   useEffect(() => {
     fetch("/api/provider/current")
       .then((r) => r.json())
-      .then((data: { provider?: string }) => {
+      .then((data: { provider?: string; supportsVision?: boolean }) => {
         if (data.provider) setProviderName(data.provider);
+        setSupportsVision(data.supportsVision ?? false);
       })
       .catch(() => {});
   }, [showSettings]);
@@ -51,18 +59,57 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  const handleSend = (message: string) => {
-    addMessage("user", message);
+  const handleSend = (message: string, attachments?: MessageAttachment[]) => {
+    addMessage("user", message, attachments);
     setLoading(true);
-    sendMessage("chat", { message });
+    sendMessage("chat", {
+      message,
+      attachments: attachments?.map((a) => ({
+        type: a.type,
+        path: a.path,
+        filename: a.filename,
+        content: a.content,
+        mimeType: a.mimeType,
+        data: a.data,
+      })),
+    });
   };
+
+  const handleStop = useCallback(() => {
+    sendMessage("chat:cancel");
+  }, [sendMessage]);
+
+  const handleDelete = useCallback((messageId: string) => {
+    const idx = deleteMessageAndAfter(messageId);
+    if (idx >= 0) {
+      sendMessage("chat:delete", { messageIndex: idx });
+    }
+  }, [deleteMessageAndAfter, sendMessage]);
+
+  const handleRegenerate = useCallback((assistantMsgId: string) => {
+    const result = regenerateFrom(assistantMsgId);
+    if (!result) return;
+    // Re-add the user message and send it as a new chat
+    addMessage("user", result.userMessage);
+    setLoading(true);
+    // Tell server to delete from that index and regenerate
+    sendMessage("chat:delete", { messageIndex: result.deleteIndex });
+    sendMessage("chat", { message: result.userMessage });
+  }, [regenerateFrom, addMessage, setLoading, sendMessage]);
 
   const handleNewChat = useCallback(() => {
     clearMessages();
   }, [clearMessages]);
 
   const handleFileClick = (filePath: string) => {
-    handleSend(`I'm looking at \`${filePath}\`. Please read this file.`);
+    setOpenFile(filePath);
+  };
+
+  const handleFileMention = (filePath: string) => {
+    setOpenFile(null);
+    inputRef.current?.focus();
+    // Dispatch a custom event so Input can pick up the mention
+    window.dispatchEvent(new CustomEvent("file:mention", { detail: filePath }));
   };
 
   useKeyboardShortcuts({
@@ -73,6 +120,7 @@ export default function App() {
       if (showProjectSwitcher) setShowProjectSwitcher(false);
       else if (showSettings) setShowSettings(false);
       else if (showShortcuts) setShowShortcuts(false);
+      else if (openFile) setOpenFile(null);
     },
     onShowHelp: () => setShowShortcuts((v) => !v),
     onOpenProject: () => setShowProjectSwitcher((v) => !v),
@@ -129,9 +177,27 @@ export default function App() {
             )}
           </div>
         )}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Chat />
-          <Input onSend={handleSend} inputRef={inputRef} />
+        <div className={`flex flex-1 overflow-hidden ${openFile ? "flex-row" : "flex-col"}`}>
+          {openFile ? (
+            <>
+              <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+                <Chat onDelete={handleDelete} onRegenerate={handleRegenerate} />
+                <Input onSend={handleSend} onStop={handleStop} inputRef={inputRef} supportsVision={supportsVision} />
+              </div>
+              <div className="w-1/2 max-w-[50%] shrink-0">
+                <CodeView
+                  filePath={openFile}
+                  onClose={() => setOpenFile(null)}
+                  onMention={handleFileMention}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <Chat onDelete={handleDelete} onRegenerate={handleRegenerate} />
+              <Input onSend={handleSend} onStop={handleStop} inputRef={inputRef} supportsVision={supportsVision} />
+            </>
+          )}
         </div>
       </div>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}

@@ -11,7 +11,7 @@ Manually test all Phase 1 features: server startup, browser auto-open, chat UI, 
 ## Test Cases
 
 ### TC-1.1: Server Startup
-- [ ] Run `pnpm dev` — server starts without errors
+- [ ] Run `yarn dev` — server starts without errors
 - [ ] Console shows: port number, URL
 - [ ] Server responds to `GET /api/health` with `{ status: "ok" }`
 - [ ] Run with `--port 3001` — uses custom port

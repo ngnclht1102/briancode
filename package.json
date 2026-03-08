@@ -4,18 +4,18 @@
   "private": true,
   "type": "module",
   "description": "AI coding assistant with web UI",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --parallel -r run dev",
-    "build": "pnpm -r run build",
-    "build:prod": "pnpm --filter web build && pnpm --filter server build && node scripts/bundle.js",
-    "start": "pnpm --filter @brian-code/server run start",
-    "test:e2e": "pnpm --filter @brian-code/e2e run test",
-    "lint": "pnpm -r run lint"
+    "dev": "yarn workspace @brian-code/server dev & yarn workspace @brian-code/web dev",
+    "build": "yarn workspace @brian-code/server build && yarn workspace @brian-code/web build",
+    "build:prod": "yarn workspace @brian-code/web build && yarn workspace @brian-code/server build && node scripts/bundle.js",
+    "start": "yarn workspace @brian-code/server start",
+    "test:e2e": "yarn workspace @brian-code/e2e test",
+    "lint": "yarn workspace @brian-code/server lint & yarn workspace @brian-code/web lint"
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
   }
 }

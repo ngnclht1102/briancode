@@ -1,6 +1,7 @@
 import fs from "fs";
 import fg from "fast-glob";
 import path from "path";
+import { log } from "../logger.js";
 
 export interface FileNode {
   path: string;
@@ -43,12 +44,13 @@ function startWatcher() {
         onChangeCallback?.();
       }, 500);
     });
-    watcher.on("error", () => {
-      // Watcher failed (e.g. too many files) — fall back to polling only
+    watcher.on("error", (err) => {
+      log.context.warn(`File watcher error: ${String(err)}`);
       stopWatcher();
     });
+    log.context.info(`File watcher started: ${projectRoot}`);
   } catch {
-    // fs.watch not supported or too many files — silent fail
+    log.context.warn("File watcher not available, using polling");
   }
 }
 
@@ -64,6 +66,7 @@ function stopWatcher() {
 }
 
 export function setProjectRoot(root: string) {
+  log.context.info(`Project root: ${root}`);
   projectRoot = root;
   cachedTree = null;
   startWatcher();
@@ -76,6 +79,7 @@ export function getProjectRoot(): string {
 export async function getFileTree(): Promise<FileNode[]> {
   if (cachedTree) return cachedTree;
 
+  log.context.start("Building file tree");
   const entries = await fg("**/*", {
     cwd: projectRoot,
     dot: false,
@@ -85,6 +89,7 @@ export async function getFileTree(): Promise<FileNode[]> {
   });
 
   cachedTree = entries.sort().map((p) => ({ path: p, type: "file" as const }));
+  log.context.done(`File tree: ${cachedTree.length} files`);
   return cachedTree;
 }
 

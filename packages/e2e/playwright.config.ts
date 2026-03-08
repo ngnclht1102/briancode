@@ -18,7 +18,7 @@ export default defineConfig({
     { name: "webkit", use: { browserName: "webkit" } },
   ],
   webServer: {
-    command: "pnpm --filter @brian-code/server run dev",
+    command: "yarn workspace @brian-code/server run dev",
     port: 3000,
     reuseExistingServer: !process.env.CI,
     cwd: "../..",

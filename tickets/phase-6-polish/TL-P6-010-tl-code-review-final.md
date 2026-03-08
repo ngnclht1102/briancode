@@ -38,7 +38,7 @@ Final code review across the entire codebase. This is the release gate — all i
 - [ ] No memory leaks over extended sessions
 
 ### Distribution
-- [ ] `pnpm build` produces clean output
+- [ ] `yarn build` produces clean output
 - [ ] `npm install -g` works on clean machine
 - [ ] `brian-code` runs and opens browser
 - [ ] README is accurate and helpful

@@ -166,7 +166,7 @@ No one waits for anyone in Step 1. Dependencies are mocked. The Tech Lead wires 
 
 ```
 1. Pull latest main branch
-2. Start the app: pnpm dev (or brian-code for later phases)
+2. Start the app: yarn dev (or brian-code for later phases)
 3. Execute all test cases from your phase ticket
 4. For each test case:
    - Pass: check it off
@@ -184,10 +184,10 @@ No one waits for anyone in Step 1. Dependencies are mocked. The Tech Lead wires 
 
 ```
 1. Pull latest main branch
-2. Run full E2E suite: pnpm test:e2e
+2. Run full E2E suite: yarn test:e2e
 3. Fix any tests that fail due to integration changes
 4. Add new tests for any integration-specific behaviors discovered
-5. Run cross-browser: pnpm test:e2e --project=chromium,firefox,webkit
+5. Run cross-browser: yarn test:e2e --project=chromium,firefox,webkit
 6. Generate test report
 7. Report results:
    - Total specs: X
@@ -218,7 +218,7 @@ No one waits for anyone in Step 1. Dependencies are mocked. The Tech Lead wires 
 **Phase:** [N]
 
 ### Steps to Reproduce
-1. Start the app with `pnpm dev`
+1. Start the app with `yarn dev`
 2. Navigate to...
 3. Click...
 4. Type...
@@ -293,7 +293,7 @@ Examples:
   feat(web): add Chat UI component with mock data
   test(e2e): add Playwright test infrastructure
   fix(provider): handle DeepSeek rate limit errors
-  chore(config): add pnpm workspace setup
+  chore(config): add yarn workspace setup
 ```
 
 ---
