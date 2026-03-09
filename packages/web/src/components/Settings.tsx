@@ -14,23 +14,53 @@ interface ConfigData {
 const PROVIDER_LABELS: Record<string, string> = {
   deepseek: "DeepSeek",
   anthropic: "Anthropic (Claude)",
-  groq: "Groq",
   kimi: "Kimi (Moonshot)",
+  qwen: "Qwen (Alibaba)",
+  groq: "Groq",
   ollama: "Ollama (Local)",
+};
+
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  deepseek: "https://api.deepseek.com",
+  anthropic: "https://api.anthropic.com",
+  kimi: "https://api.moonshot.cn",
+  qwen: "https://dashscope.aliyuncs.com/compatible-mode",
+  groq: "https://api.groq.com/openai",
+  ollama: "http://localhost:11434",
 };
 
 export default function Settings({ onClose }: { onClose: () => void }) {
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [baseUrls, setBaseUrls] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
-      .then((data) => setConfig(data as ConfigData))
+      .then((data) => {
+        const cfg = data as ConfigData;
+        setConfig(cfg);
+        // Initialize baseUrls from config (show current values)
+        const urls: Record<string, string> = {};
+        for (const [name, prov] of Object.entries(cfg.providers)) {
+          urls[name] = prov.baseUrl ?? "";
+        }
+        setBaseUrls(urls);
+      })
       .catch(() => setMessage("Failed to load config"));
   }, []);
+
+  const hasChanges = () => {
+    if (Object.values(apiKeys).some((k) => k)) return true;
+    if (!config) return false;
+    for (const [name, url] of Object.entries(baseUrls)) {
+      const original = config.providers[name]?.baseUrl ?? "";
+      if (url !== original) return true;
+    }
+    return false;
+  };
 
   const handleSave = async () => {
     if (!config) return;
@@ -38,8 +68,22 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     setMessage("");
 
     const providers: Record<string, Record<string, string>> = {};
+
+    // Include API keys
     for (const [name, key] of Object.entries(apiKeys)) {
-      if (key) providers[name] = { apiKey: key };
+      if (key) {
+        if (!providers[name]) providers[name] = {};
+        providers[name].apiKey = key;
+      }
+    }
+
+    // Include base URLs (save empty string to clear custom URL)
+    for (const [name, url] of Object.entries(baseUrls)) {
+      const original = config.providers[name]?.baseUrl ?? "";
+      if (url !== original) {
+        if (!providers[name]) providers[name] = {};
+        providers[name].baseUrl = url;
+      }
     }
 
     try {
@@ -52,8 +96,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         }),
       });
       const updated = await res.json();
-      setConfig(updated as ConfigData);
+      const cfg = updated as ConfigData;
+      setConfig(cfg);
       setApiKeys({});
+      // Update baseUrls from saved config
+      const urls: Record<string, string> = {};
+      for (const [name, prov] of Object.entries(cfg.providers)) {
+        urls[name] = prov.baseUrl ?? "";
+      }
+      setBaseUrls(urls);
       setMessage("Saved!");
     } catch {
       setMessage("Failed to save");
@@ -136,6 +187,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     )}
                   </div>
                 </div>
+                <div>
+                  <label className="text-xs text-zinc-500">API Endpoint</label>
+                  <input
+                    type="text"
+                    placeholder={DEFAULT_BASE_URLS[name] ?? "https://api.example.com"}
+                    value={baseUrls[name] ?? ""}
+                    onChange={(e) => setBaseUrls((u) => ({ ...u, [name]: e.target.value }))}
+                    className="w-full rounded bg-zinc-800 border border-zinc-600 px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600"
+                  />
+                  {DEFAULT_BASE_URLS[name] && !baseUrls[name] && (
+                    <div className="text-[10px] text-zinc-600 mt-0.5">
+                      Default: {DEFAULT_BASE_URLS[name]}
+                    </div>
+                  )}
+                </div>
                 {prov.model && (
                   <div className="text-xs text-zinc-500">
                     Model: <span className="text-zinc-400">{prov.model}</span>
@@ -159,7 +225,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || Object.values(apiKeys).every((k) => !k)}
+              disabled={saving || !hasChanges()}
               className="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40"
             >
               {saving ? "Saving..." : "Save"}

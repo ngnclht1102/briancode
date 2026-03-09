@@ -41,16 +41,17 @@ export function registerRoutes(app: FastifyInstance) {
     log.router.info("Config updated");
     saveConfig(body);
 
-    // If provider changed, switch immediately
-    if (body.defaultProvider && typeof body.defaultProvider === "string") {
-      try {
-        switchProvider(body.defaultProvider);
-      } catch {
-        // provider may not have key yet
-      }
+    // Recreate active provider to pick up any config changes (baseUrl, model, key)
+    const config = getSafeConfig();
+    try {
+      switchProvider(
+        (body.defaultProvider as string) ?? config.defaultProvider,
+      );
+    } catch {
+      // provider may not have key yet
     }
 
-    return getSafeConfig();
+    return config;
   });
 
   app.post("/api/provider/switch", async (req) => {

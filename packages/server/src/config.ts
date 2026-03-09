@@ -31,6 +31,8 @@ const DEFAULT_CONFIG: AppConfig = {
   providers: {
     deepseek: { model: "deepseek-chat" },
     anthropic: { model: "claude-sonnet-4-20250514" },
+    kimi: { model: "moonshot-v1-8k" },
+    qwen: { model: "qwen-turbo" },
   },
 };
 
@@ -87,6 +89,8 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
   const envKeys: Record<string, string> = {
     DEEPSEEK_API_KEY: "deepseek",
     ANTHROPIC_API_KEY: "anthropic",
+    MOONSHOT_API_KEY: "kimi",
+    DASHSCOPE_API_KEY: "qwen",
   };
   for (const [envVar, providerName] of Object.entries(envKeys)) {
     const val = process.env[envVar];
