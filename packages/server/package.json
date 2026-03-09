@@ -10,6 +10,7 @@
     "dist/"
   ],
   "scripts": {
+    "predev": "cd ../web && yarn build && cp -r dist/* ../server/public/",
     "dev": "tsx watch src/cli.ts",
     "build": "tsc",
     "start": "node dist/cli.js"
