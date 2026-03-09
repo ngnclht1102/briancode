@@ -24,11 +24,14 @@ export async function createServer(_options: ServerOptions) {
     limits: { fileSize: 20 * 1024 * 1024 },
   });
 
-  // Serve bundled frontend
+  // Serve bundled frontend — check multiple possible locations
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const webDistPath = path.resolve(__dirname, "../web");
-  const publicPath = path.resolve(__dirname, "../../public");
-  const staticRoot = fs.existsSync(webDistPath) ? webDistPath : publicPath;
+  const candidates = [
+    path.resolve(__dirname, "public"),       // bundled: dist/public (esbuild)
+    path.resolve(__dirname, "../web"),        // legacy: dist/web
+    path.resolve(__dirname, "../../public"),  // dev: packages/server/public
+  ];
+  const staticRoot = candidates.find((p) => fs.existsSync(p)) ?? "";
   log.server.info(`Static files: ${staticRoot}`);
 
   if (fs.existsSync(staticRoot)) {

@@ -12,7 +12,7 @@
   "scripts": {
     "predev": "yarn workspace @brian-code/web build && rm -rf ./public/assets && cp -r ../web/dist/* ./public/",
     "dev": "tsx watch src/cli.ts",
-    "build": "tsc",
+    "build": "node build.js",
     "start": "node dist/cli.js"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "@types/node": "^22.15.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/ws": "^8.18.1",
+    "esbuild": "^0.27.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
