@@ -34212,6 +34212,10 @@ var PROVIDER_TARGETS = {
 var PORT = parseInt(process.env.PROXY_PORT ?? "3100", 10);
 var HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 var app = (0, import_fastify.default)({ logger: true });
+app.removeContentTypeParser("application/json");
+app.addContentTypeParser("application/json", { parseAs: "buffer" }, (_req, body, done) => {
+  done(null, body);
+});
 app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => {
   done(null, body);
 });

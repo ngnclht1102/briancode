@@ -27,7 +27,11 @@ const HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 
 const app = Fastify({ logger: true });
 
-// Parse all content types as raw buffer so we can forward them as-is
+// Override ALL content type parsers to keep body as raw buffer (for proxying as-is)
+app.removeContentTypeParser("application/json");
+app.addContentTypeParser("application/json", { parseAs: "buffer" }, (_req, body, done) => {
+  done(null, body);
+});
 app.addContentTypeParser("*", { parseAs: "buffer" }, (_req, body, done) => {
   done(null, body);
 });
