@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createHighlighterCore, type HighlighterCore } from "shiki/core";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 interface CodeViewProps {
   filePath: string;
@@ -6,42 +8,147 @@ interface CodeViewProps {
   onMention: (filePath: string) => void;
 }
 
-function getLanguage(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
-  const map: Record<string, string> = {
-    ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
-    py: "python", rs: "rust", go: "go", java: "java", rb: "ruby",
-    css: "css", html: "html", json: "json", md: "markdown", yaml: "yaml",
-    yml: "yaml", toml: "toml", sh: "shell", bash: "shell", sql: "sql",
-  };
-  return map[ext] ?? "plaintext";
+const LANG_MAP: Record<string, string> = {
+  ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
+  py: "python", rs: "rust", go: "go", java: "java", rb: "ruby",
+  css: "css", html: "html", json: "json", md: "markdown", yaml: "yaml",
+  yml: "yaml", toml: "toml", sh: "shellscript", bash: "shellscript",
+  sql: "sql", xml: "xml", svg: "xml",
+  c: "c", cpp: "cpp", h: "c", hpp: "cpp",
+};
+
+// Maps lang id → dynamic import for the grammar
+const LANG_IMPORTS: Record<string, () => Promise<unknown>> = {
+  typescript: () => import("shiki/langs/typescript.mjs"),
+  tsx: () => import("shiki/langs/tsx.mjs"),
+  javascript: () => import("shiki/langs/javascript.mjs"),
+  jsx: () => import("shiki/langs/jsx.mjs"),
+  python: () => import("shiki/langs/python.mjs"),
+  rust: () => import("shiki/langs/rust.mjs"),
+  go: () => import("shiki/langs/go.mjs"),
+  java: () => import("shiki/langs/java.mjs"),
+  ruby: () => import("shiki/langs/ruby.mjs"),
+  css: () => import("shiki/langs/css.mjs"),
+  html: () => import("shiki/langs/html.mjs"),
+  json: () => import("shiki/langs/json.mjs"),
+  markdown: () => import("shiki/langs/markdown.mjs"),
+  yaml: () => import("shiki/langs/yaml.mjs"),
+  toml: () => import("shiki/langs/toml.mjs"),
+  shellscript: () => import("shiki/langs/shellscript.mjs"),
+  sql: () => import("shiki/langs/sql.mjs"),
+  xml: () => import("shiki/langs/xml.mjs"),
+  c: () => import("shiki/langs/c.mjs"),
+  cpp: () => import("shiki/langs/cpp.mjs"),
+};
+
+function getLang(filePath: string): string {
+  const name = filePath.split("/").pop()?.toLowerCase() ?? "";
+  if (name === "dockerfile") return "dockerfile";
+  if (name === "makefile") return "makefile";
+  const ext = name.split(".").pop() ?? "";
+  return LANG_MAP[ext] ?? "plaintext";
+}
+
+function getLangLabel(filePath: string): string {
+  const lang = getLang(filePath);
+  return lang === "shellscript" ? "shell" : lang;
+}
+
+// Singleton core highlighter — loads theme once, langs on-demand
+let corePromise: Promise<HighlighterCore> | null = null;
+const loadedLangs = new Set<string>();
+
+async function getHL(): Promise<HighlighterCore> {
+  if (!corePromise) {
+    corePromise = createHighlighterCore({
+      themes: [import("shiki/themes/github-dark-default.mjs")],
+      langs: [],
+      engine: createJavaScriptRegexEngine(),
+    });
+  }
+  return corePromise;
+}
+
+async function ensureLang(hl: HighlighterCore, lang: string) {
+  if (lang === "plaintext" || loadedLangs.has(lang)) return;
+  const loader = LANG_IMPORTS[lang];
+  if (!loader) return;
+  await hl.loadLanguage(await loader() as never);
+  loadedLangs.add(lang);
 }
 
 export default function CodeView({ filePath, onClose, onMention }: CodeViewProps) {
   const [content, setContent] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string[][] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const contentRef = useRef<string | null>(null);
 
+  // Fetch file content
   useEffect(() => {
     setLoading(true);
     setError(null);
     setContent(null);
+    setHighlighted(null);
+    contentRef.current = null;
+
     fetch(`/api/file/${encodeURIComponent(filePath)}`)
       .then((r) => r.json())
       .then((data: { content?: string; error?: string }) => {
         if (data.error) {
           setError(data.error);
         } else {
-          setContent(data.content ?? "");
+          const text = data.content ?? "";
+          contentRef.current = text;
+          setContent(text);
         }
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
   }, [filePath]);
 
+  // Highlight with Shiki once content is loaded
+  useEffect(() => {
+    if (content === null) return;
+    let cancelled = false;
+    const lang = getLang(filePath);
+
+    (async () => {
+      try {
+        const hl = await getHL();
+        await ensureLang(hl, lang);
+        if (cancelled || contentRef.current !== content) return;
+
+        const resolvedLang = loadedLangs.has(lang) ? lang : "plaintext";
+        const tokens = hl.codeToTokensBase(content, {
+          lang: resolvedLang as never,
+          theme: "github-dark-default",
+        });
+
+        const lines: string[][] = tokens.map((line) =>
+          line.map((token) => {
+            const escaped = token.content
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+            return token.color
+              ? `<span style="color:${token.color}">${escaped}</span>`
+              : escaped;
+          }),
+        );
+
+        if (!cancelled) setHighlighted(lines);
+      } catch {
+        // Shiki failed — plain text fallback (content is already displayed)
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [content, filePath]);
+
   const lines = content?.split("\n") ?? [];
   const lineNumWidth = String(lines.length).length;
-  const lang = getLanguage(filePath);
+  const lang = getLangLabel(filePath);
   const fileName = filePath.split("/").pop() ?? filePath;
 
   return (
@@ -98,8 +205,12 @@ export default function CodeView({ filePath, onClose, onMention }: CodeViewProps
                   >
                     {i + 1}
                   </td>
-                  <td className="px-3 py-0 leading-5 text-zinc-300 whitespace-pre">
-                    {line || " "}
+                  <td className="px-3 py-0 leading-5 whitespace-pre">
+                    {highlighted ? (
+                      <span dangerouslySetInnerHTML={{ __html: highlighted[i]?.join("") ?? "" }} />
+                    ) : (
+                      <span className="text-zinc-300">{line || " "}</span>
+                    )}
                   </td>
                 </tr>
               ))}

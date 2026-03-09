@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "yarn workspace @brian-code/server dev & yarn workspace @brian-code/web dev",
+    "dev": "yarn workspace @brian-code/server dev",
     "build": "yarn workspace @brian-code/server build && yarn workspace @brian-code/web build",
     "build:prod": "yarn workspace @brian-code/web build && yarn workspace @brian-code/server build && node scripts/bundle.js",
     "start": "yarn workspace @brian-code/server start",
