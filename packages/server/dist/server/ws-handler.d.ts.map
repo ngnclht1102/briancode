@@ -1,0 +1,1 @@
+{"version":3,"file":"ws-handler.d.ts","sourceRoot":"","sources":["../../src/server/ws-handler.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,IAAI,CAAC;AAMpC,wBAAgB,mBAAmB,IAAI,GAAG,CAAC,SAAS,CAAC,CAEpD;AAED,wBAAgB,gBAAgB,CAAC,OAAO,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,QAOhE;AAED,wBAAgB,eAAe,CAAC,MAAM,EAAE,SAAS,QA+ChD"}
