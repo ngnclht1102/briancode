@@ -88,6 +88,9 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
         config.providers[name] = { ...config.providers[name], ...provConfig };
       }
     }
+    if ((globalConfig as Record<string, unknown>).agentLimits) {
+      config.agentLimits = { ...config.agentLimits, ...(globalConfig as Record<string, unknown>).agentLimits as Partial<AgentLimits> };
+    }
     log.config.info("Loaded global config");
   }
 
@@ -100,6 +103,9 @@ export function loadConfig(cliOverrides?: { provider?: string; model?: string })
       for (const [name, provConfig] of Object.entries(projectConfig.providers)) {
         config.providers[name] = { ...config.providers[name], ...provConfig };
       }
+    }
+    if ((projectConfig as Record<string, unknown>).agentLimits) {
+      config.agentLimits = { ...config.agentLimits, ...(projectConfig as Record<string, unknown>).agentLimits as Partial<AgentLimits> };
     }
     log.config.info("Loaded project config");
   }
