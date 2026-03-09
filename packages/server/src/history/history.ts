@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { getProjectRoot } from "../context/workspace.js";
+import { getAgentLimits } from "../config.js";
 import { log } from "../logger.js";
 
 const HISTORY_DIR = path.join(os.homedir(), ".brian-code", "history");
-const MAX_CONVERSATIONS = 50;
 
 export interface ConversationEntry {
   id: string;
@@ -87,7 +87,7 @@ export function listConversations(filterProjectPath?: string): ConversationEntry
   const files = fs.readdirSync(HISTORY_DIR).filter((f) => f.endsWith(".json")).sort().reverse();
   const entries: ConversationEntry[] = [];
 
-  for (const file of files.slice(0, MAX_CONVERSATIONS)) {
+  for (const file of files.slice(0, getAgentLimits().maxConversations)) {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(HISTORY_DIR, file), "utf-8"));
       if (filterProjectPath && data.projectPath !== filterProjectPath) continue;
@@ -148,7 +148,7 @@ export function resetConversation() {
 function pruneOldConversations() {
   ensureDir();
   const files = fs.readdirSync(HISTORY_DIR).filter((f) => f.endsWith(".json")).sort();
-  while (files.length > MAX_CONVERSATIONS) {
+  while (files.length > getAgentLimits().maxConversations) {
     const oldest = files.shift()!;
     try {
       fs.unlinkSync(path.join(HISTORY_DIR, oldest));

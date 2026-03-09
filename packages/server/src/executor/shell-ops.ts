@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "child_process";
 import { getProjectRoot } from "../context/workspace.js";
+import { getAgentLimits } from "../config.js";
 import { log } from "../logger.js";
 
 export interface ShellResult {
@@ -17,9 +18,6 @@ const BLOCKED_PATTERNS = [
   /\bdd\s+if=/,
   /\b:\(\)\s*\{/,
 ];
-
-const DEFAULT_TIMEOUT = 60_000;
-const MAX_RETRIES = 2;
 
 let activeProcess: ChildProcess | null = null;
 
@@ -44,9 +42,10 @@ export function runCommand(
     }
   }
 
+  const limits = getAgentLimits();
   const cwd = options?.cwd ?? getProjectRoot();
-  const timeout = options?.timeout ?? DEFAULT_TIMEOUT;
-  const maxRetries = options?.retries ?? MAX_RETRIES;
+  const timeout = options?.timeout ?? limits.shellTimeout * 1000;
+  const maxRetries = options?.retries ?? limits.shellRetries;
 
   return runCommandOnce(command, cwd, timeout, options?.onOutput, 0, maxRetries);
 }

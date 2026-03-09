@@ -16,10 +16,29 @@ export interface RecentProject {
   lastOpened: string;
 }
 
+export interface AgentLimits {
+  maxToolIterations: number;
+  shellTimeout: number;
+  shellRetries: number;
+  maxSearchMatches: number;
+  maxFileLines: number;
+  maxConversations: number;
+}
+
+export const DEFAULT_AGENT_LIMITS: AgentLimits = {
+  maxToolIterations: 50,
+  shellTimeout: 60,
+  shellRetries: 2,
+  maxSearchMatches: 20,
+  maxFileLines: 200,
+  maxConversations: 50,
+};
+
 export interface AppConfig {
   defaultProvider: string;
   providers: Record<string, ProviderConfig>;
   recentProjects?: RecentProject[];
+  agentLimits?: Partial<AgentLimits>;
 }
 
 const CONFIG_DIR = path.join(os.homedir(), ".brian-code");
@@ -131,6 +150,10 @@ export function saveConfig(updates: Partial<AppConfig>) {
       existing.providers[name] = { ...existing.providers[name], ...provConfig };
     }
   }
+  if (updates.agentLimits) {
+    const prev = (existing as Record<string, unknown>).agentLimits as Partial<AgentLimits> | undefined;
+    (existing as Record<string, unknown>).agentLimits = { ...prev, ...updates.agentLimits };
+  }
 
   fs.writeFileSync(GLOBAL_CONFIG_FILE, JSON.stringify(existing, null, 2), { mode: 0o600 });
   log.config.info("Config saved");
@@ -169,8 +192,18 @@ export function removeRecentProject(projectPath: string) {
   fs.writeFileSync(GLOBAL_CONFIG_FILE, JSON.stringify(existing, null, 2), { mode: 0o600 });
 }
 
+/** Get resolved agent limits (defaults merged with user overrides) */
+export function getAgentLimits(): AgentLimits {
+  const config = getConfig();
+  return { ...DEFAULT_AGENT_LIMITS, ...config.agentLimits };
+}
+
 /** Returns config safe for frontend (no API keys) */
-export function getSafeConfig(): { defaultProvider: string; providers: Record<string, { model?: string; baseUrl?: string; hasKey: boolean }> } {
+export function getSafeConfig(): {
+  defaultProvider: string;
+  providers: Record<string, { model?: string; baseUrl?: string; hasKey: boolean }>;
+  agentLimits: AgentLimits;
+} {
   const config = getConfig();
   const providers: Record<string, { model?: string; baseUrl?: string; hasKey: boolean }> = {};
   for (const [name, prov] of Object.entries(config.providers)) {
@@ -180,5 +213,9 @@ export function getSafeConfig(): { defaultProvider: string; providers: Record<st
       hasKey: !!prov.apiKey,
     };
   }
-  return { defaultProvider: config.defaultProvider, providers };
+  return {
+    defaultProvider: config.defaultProvider,
+    providers,
+    agentLimits: getAgentLimits(),
+  };
 }

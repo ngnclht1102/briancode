@@ -5,6 +5,7 @@ import { getToolDefinitions, executeTool, resetToolExecutionState } from "../con
 import { buildSystemPrompt } from "../context/context-builder.js";
 import { addMessageToHistory, getCurrentConversationId, resetConversation } from "../history/history.js";
 import { readFileRaw } from "../context/file-reader.js";
+import { getAgentLimits } from "../config.js";
 import { log } from "../logger.js";
 
 interface Attachment {
@@ -15,8 +16,6 @@ interface Attachment {
   mimeType?: string;
   data?: string;
 }
-
-const MAX_TOOL_ITERATIONS = 25;
 
 const conversationHistory: ChatMessage[] = [];
 let systemPromptLoaded = false;
@@ -137,11 +136,12 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
 
   try {
     let iterations = 0;
+    const maxIterations = getAgentLimits().maxToolIterations;
 
-    while (iterations < MAX_TOOL_ITERATIONS) {
+    while (iterations < maxIterations) {
       if (signal.aborted) break;
       iterations++;
-      log.chat.info(`Iteration ${iterations}/${MAX_TOOL_ITERATIONS}`);
+      log.chat.info(`Iteration ${iterations}/${maxIterations}`);
 
       const stream = provider.chat(conversationHistory, tools);
       let fullText = "";
@@ -232,8 +232,8 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
     if (signal.aborted) {
       log.chat.info("Chat stopped by user");
       socket.send(JSON.stringify({ type: "chat:stream", delta: "\n\n[Generation stopped]" }));
-    } else if (iterations >= MAX_TOOL_ITERATIONS) {
-      log.chat.warn(`Max tool iterations reached (${MAX_TOOL_ITERATIONS})`);
+    } else if (iterations >= maxIterations) {
+      log.chat.warn(`Max tool iterations reached (${maxIterations})`);
       socket.send(
         JSON.stringify({
           type: "chat:stream",

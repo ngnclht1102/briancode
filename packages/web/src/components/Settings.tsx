@@ -6,9 +6,19 @@ interface ProviderInfo {
   hasKey: boolean;
 }
 
+interface AgentLimits {
+  maxToolIterations: number;
+  shellTimeout: number;
+  shellRetries: number;
+  maxSearchMatches: number;
+  maxFileLines: number;
+  maxConversations: number;
+}
+
 interface ConfigData {
   defaultProvider: string;
   providers: Record<string, ProviderInfo>;
+  agentLimits: AgentLimits;
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -29,10 +39,21 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
   ollama: "http://localhost:11434",
 };
 
+const LIMIT_FIELDS: { key: keyof AgentLimits; label: string; description: string; min: number; max: number }[] = [
+  { key: "maxToolIterations", label: "Max Tool Iterations", description: "Maximum tool call rounds per message", min: 1, max: 200 },
+  { key: "shellTimeout", label: "Shell Timeout (s)", description: "Seconds before a shell command times out", min: 5, max: 600 },
+  { key: "shellRetries", label: "Shell Retries", description: "Retry count on shell timeout", min: 0, max: 10 },
+  { key: "maxSearchMatches", label: "Max Search Matches", description: "Maximum results from file search", min: 5, max: 100 },
+  { key: "maxFileLines", label: "Max File Lines", description: "Default lines returned when reading a file", min: 50, max: 2000 },
+  { key: "maxConversations", label: "Max Conversations", description: "Conversation history limit", min: 10, max: 500 },
+];
+
 export default function Settings({ onClose }: { onClose: () => void }) {
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [baseUrls, setBaseUrls] = useState<Record<string, string>>({});
+  const [limits, setLimits] = useState<AgentLimits | null>(null);
+  const [origLimits, setOrigLimits] = useState<AgentLimits | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -42,6 +63,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       .then((data) => {
         const cfg = data as ConfigData;
         setConfig(cfg);
+        setLimits({ ...cfg.agentLimits });
+        setOrigLimits({ ...cfg.agentLimits });
         // Initialize baseUrls from config (show current values)
         const urls: Record<string, string> = {};
         for (const [name, prov] of Object.entries(cfg.providers)) {
@@ -58,6 +81,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     for (const [name, url] of Object.entries(baseUrls)) {
       const original = config.providers[name]?.baseUrl ?? "";
       if (url !== original) return true;
+    }
+    if (limits && origLimits) {
+      for (const field of LIMIT_FIELDS) {
+        if (limits[field.key] !== origLimits[field.key]) return true;
+      }
     }
     return false;
   };
@@ -86,6 +114,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       }
     }
 
+    // Include changed agent limits
+    const changedLimits: Partial<AgentLimits> = {};
+    if (limits && origLimits) {
+      for (const field of LIMIT_FIELDS) {
+        if (limits[field.key] !== origLimits[field.key]) {
+          changedLimits[field.key] = limits[field.key];
+        }
+      }
+    }
+
     try {
       const res = await fetch("/api/config", {
         method: "POST",
@@ -93,12 +131,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({
           defaultProvider: config.defaultProvider,
           providers,
+          ...(Object.keys(changedLimits).length > 0 ? { agentLimits: changedLimits } : {}),
         }),
       });
       const updated = await res.json();
       const cfg = updated as ConfigData;
       setConfig(cfg);
       setApiKeys({});
+      setLimits({ ...cfg.agentLimits });
+      setOrigLimits({ ...cfg.agentLimits });
       // Update baseUrls from saved config
       const urls: Record<string, string> = {};
       for (const [name, prov] of Object.entries(cfg.providers)) {
@@ -150,6 +191,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 text-xl">×</button>
         </div>
 
+        {/* Providers */}
         <div className="space-y-4">
           {Object.entries(config.providers).map(([name, prov]) => (
             <div key={name} className="rounded border border-zinc-700 p-3">
@@ -211,6 +253,34 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+
+        {/* Agent Limits */}
+        {limits && (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-zinc-200 mb-3">Agent Limits</h3>
+            <div className="rounded border border-zinc-700 p-3 space-y-3">
+              {LIMIT_FIELDS.map((field) => (
+                <div key={field.key} className="flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-zinc-300">{field.label}</div>
+                    <div className="text-[10px] text-zinc-500">{field.description}</div>
+                  </div>
+                  <input
+                    type="number"
+                    min={field.min}
+                    max={field.max}
+                    value={limits[field.key]}
+                    onChange={(e) => {
+                      const val = Math.max(field.min, Math.min(field.max, parseInt(e.target.value) || field.min));
+                      setLimits((l) => l ? { ...l, [field.key]: val } : l);
+                    }}
+                    className="w-20 rounded bg-zinc-800 border border-zinc-600 px-2 py-1 text-xs text-zinc-300 text-right"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mt-4">
           {message && (

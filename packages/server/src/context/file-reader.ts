@@ -1,7 +1,7 @@
 import fs from "fs";
 import { resolveProjectPath } from "./workspace.js";
+import { getAgentLimits } from "../config.js";
 
-const MAX_LINES_DEFAULT = 200;
 const MAX_LINE_LENGTH = 2000;
 
 export function readFile(
@@ -31,7 +31,7 @@ export function readFile(
   const totalLines = allLines.length;
 
   const start = startLine ? Math.max(1, startLine) : 1;
-  const end = endLine ? Math.min(totalLines, endLine) : Math.min(totalLines, start + MAX_LINES_DEFAULT - 1);
+  const end = endLine ? Math.min(totalLines, endLine) : Math.min(totalLines, start + getAgentLimits().maxFileLines - 1);
 
   const selectedLines = allLines.slice(start - 1, end);
   const numbered = selectedLines.map((line, i) => {
@@ -42,8 +42,8 @@ export function readFile(
 
   let result = numbered.join("\n");
 
-  if (!startLine && !endLine && totalLines > MAX_LINES_DEFAULT) {
-    result += `\n\n... (truncated, ${totalLines - MAX_LINES_DEFAULT} more lines. Use startLine/endLine to read more)`;
+  if (!startLine && !endLine && totalLines > getAgentLimits().maxFileLines) {
+    result += `\n\n... (truncated, ${totalLines - getAgentLimits().maxFileLines} more lines. Use startLine/endLine to read more)`;
   }
 
   return result;

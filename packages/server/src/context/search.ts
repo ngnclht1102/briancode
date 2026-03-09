@@ -1,8 +1,7 @@
 import fs from "fs";
 import fg from "fast-glob";
 import { getProjectRoot, resolveProjectPath } from "./workspace.js";
-
-const MAX_MATCHES = 20;
+import { getAgentLimits } from "../config.js";
 const CONTEXT_LINES = 2;
 
 interface SearchMatch {
@@ -36,7 +35,7 @@ export async function searchFiles(
   const queryLower = query.toLowerCase();
 
   for (const file of files) {
-    if (matches.length >= MAX_MATCHES) break;
+    if (matches.length >= getAgentLimits().maxSearchMatches) break;
 
     const absPath = resolveProjectPath(file);
     if (!absPath) continue;
@@ -55,7 +54,7 @@ export async function searchFiles(
 
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
-      if (matches.length >= MAX_MATCHES) break;
+      if (matches.length >= getAgentLimits().maxSearchMatches) break;
       if (lines[i].toLowerCase().includes(queryLower)) {
         const ctxStart = Math.max(0, i - CONTEXT_LINES);
         const ctxEnd = Math.min(lines.length - 1, i + CONTEXT_LINES);
@@ -83,7 +82,7 @@ export async function searchFiles(
   let result = parts.join("\n\n");
 
   // Check if we hit the limit
-  if (matches.length >= MAX_MATCHES) {
+  if (matches.length >= getAgentLimits().maxSearchMatches) {
     result += `\n\n... and more matches. Narrow your search with a glob pattern.`;
   }
 
