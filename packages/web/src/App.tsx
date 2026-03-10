@@ -24,6 +24,7 @@ export default function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
   const [providerName, setProviderName] = useState("deepseek");
+  const [currentModel, setCurrentModel] = useState<string | undefined>();
   const [supportsVision, setSupportsVision] = useState(false);
   const [projectInfo, setProjectInfo] = useState<{ path: string; name: string }>({ path: "", name: "" });
   const [fileTreeKey, setFileTreeKey] = useState(0);
@@ -43,8 +44,9 @@ export default function App() {
   useEffect(() => {
     fetch("/api/provider/current")
       .then((r) => r.json())
-      .then((data: { provider?: string; supportsVision?: boolean }) => {
+      .then((data: { provider?: string; model?: string; supportsVision?: boolean }) => {
         if (data.provider) setProviderName(data.provider);
+        if (data.model) setCurrentModel(data.model);
         setSupportsVision(data.supportsVision ?? false);
       })
       .catch(() => {});
@@ -97,6 +99,22 @@ export default function App() {
     sendMessage("chat", { message: result.userMessage });
   }, [regenerateFrom, addMessage, setLoading, sendMessage]);
 
+  const handleModelChange = useCallback((model: string) => {
+    fetch("/api/provider/model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    })
+      .then((r) => r.json())
+      .then((data: { success?: boolean; model?: string; supportsVision?: boolean }) => {
+        if (data.success && data.model) {
+          setCurrentModel(data.model);
+          setSupportsVision(data.supportsVision ?? false);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleNewChat = useCallback(() => {
     clearMessages();
   }, [clearMessages]);
@@ -131,11 +149,13 @@ export default function App() {
       <StatusBar
         status={status}
         providerName={providerName}
+        currentModel={currentModel}
         projectName={projectInfo.name}
         sidebarOpen={showSidebar}
         onToggleSidebar={() => setShowSidebar((v) => !v)}
         onSettingsClick={() => setShowSettings(true)}
         onProjectClick={() => setShowProjectSwitcher(true)}
+        onModelChange={handleModelChange}
       />
       <div className="flex flex-1 overflow-hidden">
         {showSidebar && (
@@ -200,7 +220,15 @@ export default function App() {
           )}
         </div>
       </div>
-      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onProviderSwitch={(provider, model) => {
+            setProviderName(provider);
+            if (model) setCurrentModel(model);
+          }}
+        />
+      )}
       {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
       {showProjectSwitcher && (
         <ProjectSwitcher

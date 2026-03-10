@@ -1,5 +1,5 @@
 import type { AIProvider } from "./types.js";
-import { getConfig } from "../config.js";
+import { getConfig, saveConfig } from "../config.js";
 import { DeepSeekProvider } from "./deepseek.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { OpenAICompatProvider, PROVIDER_PRESETS } from "./openai-compat.js";
@@ -58,5 +58,27 @@ export function setProvider(provider: AIProvider) {
 export function switchProvider(name: string): AIProvider {
   log.provider.info(`Switching provider to: ${name}`);
   currentProvider = createProvider(name);
+  // Persist the switch so config stays in sync
+  const config = getConfig();
+  if (config.defaultProvider !== name) {
+    saveConfig({ defaultProvider: name });
+  }
   return currentProvider;
+}
+
+export function switchModel(model: string): AIProvider {
+  const config = getConfig();
+  const providerName = config.defaultProvider;
+  log.provider.info(`Switching model to: ${model} (provider: ${providerName})`);
+  // Update config with new model
+  const provConfig = config.providers[providerName];
+  if (provConfig) provConfig.model = model;
+  // Recreate provider with new model
+  currentProvider = createProvider(providerName);
+  return currentProvider;
+}
+
+export function getCurrentModel(): string | undefined {
+  const config = getConfig();
+  return config.providers[config.defaultProvider]?.model;
 }

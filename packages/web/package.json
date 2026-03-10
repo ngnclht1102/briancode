@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node dev.js",
+    "start": "node dev.js --serve",
     "build": "tsc -b && node build.js"
   },
   "dependencies": {

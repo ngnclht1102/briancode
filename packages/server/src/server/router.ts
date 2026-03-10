@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import type { FastifyInstance } from "fastify";
 import { getSafeConfig, saveConfig, getRecentProjects, addRecentProject, removeRecentProject } from "../config.js";
-import { switchProvider, getProvider } from "../providers/index.js";
+import { switchProvider, getProvider, switchModel, getCurrentModel } from "../providers/index.js";
 import { getFileTree, setProjectRoot, getProjectRoot, invalidateCache, setFileChangeCallback } from "../context/workspace.js";
 import { listConversations, loadConversation, deleteConversation, resetConversation, setActiveConversation } from "../history/history.js";
 import { getChangeHistory, rollbackExecution, undoLast, clearChangeHistory } from "../executor/change-tracker.js";
@@ -70,9 +70,23 @@ export function registerRoutes(app: FastifyInstance) {
   app.get("/api/provider/current", async () => {
     try {
       const p = getProvider();
-      return { provider: p.name, supportsVision: p.supportsVision ?? false };
+      return { provider: p.name, model: getCurrentModel(), supportsVision: p.supportsVision ?? false };
     } catch {
-      return { provider: null, supportsVision: false };
+      return { provider: null, model: null, supportsVision: false };
+    }
+  });
+
+  app.post("/api/provider/model", async (req) => {
+    const { model } = req.body as { model: string };
+    log.router.info(`Model switch request: ${model}`);
+    try {
+      const p = switchModel(model);
+      saveConfig({ providers: { [p.name]: { model } } });
+      log.router.done(`Model switched to: ${model}`);
+      return { success: true, provider: p.name, model, supportsVision: p.supportsVision ?? false };
+    } catch (err) {
+      log.router.error(`Model switch failed: ${String(err)}`);
+      return { success: false, error: String(err) };
     }
   });
 

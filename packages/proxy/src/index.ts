@@ -16,7 +16,7 @@ const PROVIDER_TARGETS: Record<string, string> = {
   anthropic: "https://api.anthropic.com",
   deepseek: "https://api.deepseek.com",
   openai: "https://api.openai.com",
-  kimi: "https://api.moonshot.cn",
+  kimi: "https://api.moonshot.ai",
   qwen: "https://dashscope.aliyuncs.com/compatible-mode",
   groq: "https://api.groq.com/openai",
   ollama: "http://localhost:11434",

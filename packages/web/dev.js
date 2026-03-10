@@ -1,9 +1,13 @@
 import { context } from "esbuild";
 import { spawn } from "child_process";
 import fs from "fs";
+import http from "http";
+import path from "path";
 
 const outDir = "dist";
 const serverPublic = "../server/public";
+const SERVE_PORT = parseInt(process.env.PORT || "3001", 10);
+const isServe = process.argv.includes("--serve");
 
 // Clean
 fs.rmSync(outDir, { recursive: true, force: true });
@@ -109,9 +113,49 @@ tailwind.stderr.on("data", (data) => {
 
 console.log("\x1b[36m[dev] Watching for changes... (Ctrl+C to stop)\x1b[0m");
 
+// Static file server for standalone dev mode
+let server;
+if (isServe) {
+  const MIME_TYPES = {
+    ".html": "text/html",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+  };
+
+  server = http.createServer((req, res) => {
+    let urlPath = req.url.split("?")[0];
+    let filePath = path.join(outDir, urlPath);
+
+    // SPA fallback: serve index.html for non-asset routes
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(outDir, "index.html");
+    }
+
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404);
+      res.end("Not found");
+      return;
+    }
+
+    const ext = path.extname(filePath);
+    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    res.writeHead(200, { "Content-Type": contentType });
+    fs.createReadStream(filePath).pipe(res);
+  });
+
+  server.listen(SERVE_PORT, () => {
+    console.log(`\x1b[36m[dev] Serving at http://localhost:${SERVE_PORT}\x1b[0m`);
+  });
+}
+
 // Cleanup on exit
 process.on("SIGINT", async () => {
   tailwind.kill();
+  if (server) server.close();
   await ctx.dispose();
   process.exit(0);
 });

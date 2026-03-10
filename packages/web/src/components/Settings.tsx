@@ -33,7 +33,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 const DEFAULT_BASE_URLS: Record<string, string> = {
   deepseek: "https://api.deepseek.com",
   anthropic: "https://api.anthropic.com",
-  kimi: "https://api.moonshot.cn",
+  kimi: "https://api.moonshot.ai",
   qwen: "https://dashscope.aliyuncs.com/compatible-mode",
   groq: "https://api.groq.com/openai",
   ollama: "http://localhost:11434",
@@ -48,7 +48,7 @@ const LIMIT_FIELDS: { key: keyof AgentLimits; label: string; description: string
   { key: "maxConversations", label: "Max Conversations", description: "Conversation history limit", min: 10, max: 500 },
 ];
 
-export default function Settings({ onClose }: { onClose: () => void }) {
+export default function Settings({ onClose, onProviderSwitch }: { onClose: () => void; onProviderSwitch?: (provider: string, model?: string) => void }) {
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [baseUrls, setBaseUrls] = useState<Record<string, string>>({});
@@ -160,9 +160,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider }),
       });
-      const data = (await res.json()) as { success: boolean; error?: string };
+      const data = (await res.json()) as { success: boolean; provider?: string; model?: string; error?: string };
       if (data.success) {
         setConfig((c) => c ? { ...c, defaultProvider: provider } : c);
+        onProviderSwitch?.(provider, config?.providers[provider]?.model);
         setMessage(`Switched to ${provider}`);
       } else {
         setMessage(data.error ?? "Failed to switch");

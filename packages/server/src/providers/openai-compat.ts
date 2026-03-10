@@ -127,7 +127,7 @@ export class OpenAICompatProvider implements AIProvider {
 // Presets for common providers
 export const PROVIDER_PRESETS: Record<string, { baseUrl: string; defaultModel: string }> = {
   deepseek: { baseUrl: "https://api.deepseek.com", defaultModel: "deepseek-chat" },
-  kimi: { baseUrl: "https://api.moonshot.cn", defaultModel: "moonshot-v1-8k" },
+  kimi: { baseUrl: "https://api.moonshot.ai", defaultModel: "moonshot-v1-8k" },
   qwen: { baseUrl: "https://dashscope.aliyuncs.com/compatible-mode", defaultModel: "qwen-turbo" },
   groq: { baseUrl: "https://api.groq.com/openai", defaultModel: "llama-3.3-70b-versatile" },
   ollama: { baseUrl: "http://localhost:11434", defaultModel: "llama3.2" },
