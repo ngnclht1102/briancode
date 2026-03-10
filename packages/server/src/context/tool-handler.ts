@@ -931,6 +931,10 @@ const tools: ToolDefinition[] = [
   },
 ];
 
+// Track recently read files to detect infinite read loops
+const recentReads = new Map<string, number>();
+const MAX_DUPLICATE_READS = 2; // allow re-read once (e.g. after edit), block on 3rd
+
 let hasExecutionId = false;
 
 function ensureExecutionId() {
@@ -943,6 +947,7 @@ function ensureExecutionId() {
 
 export function resetToolExecutionState() {
   hasExecutionId = false;
+  recentReads.clear();
 }
 
 export function getToolDefinitions(): Tool[] {
@@ -958,6 +963,23 @@ export async function executeTool(
     log.tool.error(`Unknown tool: "${name}"`);
     return `Error: Unknown tool "${name}"`;
   }
+
+  // Detect repeated reads of the same file
+  if (name === "read_file") {
+    const filePath = args.path as string;
+    const count = (recentReads.get(filePath) ?? 0) + 1;
+    recentReads.set(filePath, count);
+    if (count > MAX_DUPLICATE_READS) {
+      log.tool.warn(`Blocked duplicate read of ${filePath} (${count} times)`);
+      return `You already read this file ${count - 1} time(s) in this conversation. The content has not changed. Use the information you already have instead of reading it again.`;
+    }
+  }
+
+  // Reset read count when a file is written/edited (so re-reading after edit is allowed)
+  if ((name === "write_file" || name === "edit_file") && args.path) {
+    recentReads.delete(args.path as string);
+  }
+
   try {
     const result = await tool.handler(args);
     return result;

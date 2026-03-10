@@ -148,6 +148,33 @@ app.get("/bugs", async () => {
   return { count: files.length, files };
 });
 
+app.get("/bugs/:filename", async (request, reply) => {
+  const { filename } = request.params as { filename: string };
+  // Sanitize: only allow .txt files, no path traversal
+  if (!filename.endsWith(".txt") || filename.includes("/") || filename.includes("..")) {
+    return reply.status(400).send({ error: "Invalid filename" });
+  }
+  const filepath = path.join(BUGS_DIR, filename);
+  if (!fs.existsSync(filepath)) {
+    return reply.status(404).send({ error: "Bug report not found" });
+  }
+  const content = fs.readFileSync(filepath, "utf-8");
+  return { filename, content };
+});
+
+app.delete("/bugs/:filename", async (request, reply) => {
+  const { filename } = request.params as { filename: string };
+  if (!filename.endsWith(".txt") || filename.includes("/") || filename.includes("..")) {
+    return reply.status(400).send({ error: "Invalid filename" });
+  }
+  const filepath = path.join(BUGS_DIR, filename);
+  if (!fs.existsSync(filepath)) {
+    return reply.status(404).send({ error: "Bug report not found" });
+  }
+  fs.unlinkSync(filepath);
+  return { success: true, deleted: filename };
+});
+
 app.get("/logs", async () => {
   return { count: recentLogs.length, logs: [...recentLogs] };
 });

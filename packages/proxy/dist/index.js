@@ -34312,6 +34312,30 @@ app.get("/bugs", async () => {
   const files = fs.readdirSync(BUGS_DIR).filter((f) => f.endsWith(".txt")).sort().reverse();
   return { count: files.length, files };
 });
+app.get("/bugs/:filename", async (request, reply) => {
+  const { filename } = request.params;
+  if (!filename.endsWith(".txt") || filename.includes("/") || filename.includes("..")) {
+    return reply.status(400).send({ error: "Invalid filename" });
+  }
+  const filepath = path.join(BUGS_DIR, filename);
+  if (!fs.existsSync(filepath)) {
+    return reply.status(404).send({ error: "Bug report not found" });
+  }
+  const content = fs.readFileSync(filepath, "utf-8");
+  return { filename, content };
+});
+app.delete("/bugs/:filename", async (request, reply) => {
+  const { filename } = request.params;
+  if (!filename.endsWith(".txt") || filename.includes("/") || filename.includes("..")) {
+    return reply.status(400).send({ error: "Invalid filename" });
+  }
+  const filepath = path.join(BUGS_DIR, filename);
+  if (!fs.existsSync(filepath)) {
+    return reply.status(404).send({ error: "Bug report not found" });
+  }
+  fs.unlinkSync(filepath);
+  return { success: true, deleted: filename };
+});
 app.get("/logs", async () => {
   return { count: recentLogs.length, logs: [...recentLogs] };
 });

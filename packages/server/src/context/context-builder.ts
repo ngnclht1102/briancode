@@ -26,6 +26,12 @@ export async function buildSystemPrompt(): Promise<string> {
     "4. For edits, always read the file first, then provide the complete new content via edit_file.",
     "5. After calling the tool, confirm what was done based on the tool result.",
     "Keep changes focused — one file per tool call.",
+    "",
+    "EFFICIENCY RULES:",
+    "- Do NOT read the same file more than once unless you have edited it in between.",
+    "- Keep track of files you have already read — their content is in the conversation history.",
+    "- If you need to reference a file you already read, use the information from the earlier read.",
+    "- Avoid unnecessary tool calls. Plan your approach before acting.",
   );
 
   // Agents.md — project-specific instructions
