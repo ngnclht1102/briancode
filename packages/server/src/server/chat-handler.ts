@@ -153,6 +153,9 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
   try {
     let iterations = 0;
     const maxIterations = getAgentLimits().maxToolIterations;
+    let lastToolCallKey = "";
+    let consecutiveRepeatCount = 0;
+    const MAX_CONSECUTIVE_REPEATS = 3;
 
     while (iterations < maxIterations) {
       if (signal.aborted) break;
@@ -260,6 +263,23 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
           tool_call_id: tc.id,
         });
         addMessageToHistory("tool", result, [{ name: tc.name }]);
+      }
+
+      // Detect consecutive identical tool calls (infinite loop protection)
+      const currentToolKey = toolCalls.map(tc => `${tc.name}:${JSON.stringify(tc.args)}`).join("|");
+      if (currentToolKey === lastToolCallKey) {
+        consecutiveRepeatCount++;
+        if (consecutiveRepeatCount >= MAX_CONSECUTIVE_REPEATS) {
+          log.chat.error(`Infinite tool loop detected: "${toolCalls[0]?.name}" called ${consecutiveRepeatCount + 1} times in a row. Aborting.`);
+          socket.send(JSON.stringify({
+            type: "chat:stream",
+            delta: "\n\n[Stopped: detected repeated identical tool calls. The model appears stuck in a loop.]",
+          }));
+          break;
+        }
+      } else {
+        consecutiveRepeatCount = 0;
+        lastToolCallKey = currentToolKey;
       }
     }
 
