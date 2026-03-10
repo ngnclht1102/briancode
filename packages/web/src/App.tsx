@@ -32,6 +32,7 @@ export default function App() {
   const [fileTreeKey, setFileTreeKey] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"files" | "history">("files");
   const [openFile, setOpenFile] = useState<string | null>(null);
+  const [contextUsage, setContextUsage] = useState<{ usedTokens: number; contextWindow: number; usagePercent: number; messageCount: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleProjectSwitched = useCallback((event: { path: string; name: string }) => {
@@ -62,6 +63,25 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
+
+  const fetchContextUsage = useCallback(() => {
+    fetch("/api/context")
+      .then((r) => r.json())
+      .then((data: { usedTokens: number; contextWindow: number; usagePercent: number; messageCount: number }) => {
+        setContextUsage(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch context usage when messages change (after chat completes)
+  const isLoading = useChatStore((s) => s.isLoading);
+  const prevLoading = useRef(isLoading);
+  useEffect(() => {
+    if (prevLoading.current && !isLoading) {
+      fetchContextUsage();
+    }
+    prevLoading.current = isLoading;
+  }, [isLoading, fetchContextUsage]);
 
   const handleSend = (message: string, attachments?: MessageAttachment[]) => {
     addMessage("user", message, attachments);
@@ -118,7 +138,9 @@ export default function App() {
   }, []);
 
   const handleNewChat = useCallback(() => {
+    fetch("/api/conversation/new", { method: "POST" }).catch(() => {});
     clearMessages();
+    setContextUsage(null);
   }, [clearMessages]);
 
   const handleFileClick = (filePath: string) => {
@@ -154,6 +176,7 @@ export default function App() {
         currentModel={currentModel}
         projectName={projectInfo.name}
         sidebarOpen={showSidebar}
+        contextUsage={contextUsage}
         onToggleSidebar={() => setShowSidebar((v) => !v)}
         onSettingsClick={() => setShowSettings(true)}
         onBugReportClick={() => setShowBugReport(true)}

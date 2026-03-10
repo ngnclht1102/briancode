@@ -12,6 +12,8 @@ import { resetChatState, loadChatMessages } from "./chat-handler.js";
 import { broadcastMessage } from "./ws-handler.js";
 import { registerUploadRoute } from "./upload-handler.js";
 import { log, getRecentLogs } from "../logger.js";
+import { estimateTotalTokens, getContextWindow } from "../context/context-manager.js";
+import { getCurrentModel } from "../providers/index.js";
 
 function resolvePath(input: string): string {
   if (input.startsWith("~")) {
@@ -235,6 +237,23 @@ export function registerRoutes(app: FastifyInstance) {
   app.post("/api/undo", async () => {
     log.router.info("Undo last change");
     return undoLast();
+  });
+
+  // Context usage info
+  app.get("/api/context", async () => {
+    const { getConversationSnapshot: getHistory } = await import("./chat-handler.js");
+    // Re-import to get the raw messages for token counting
+    const { conversationHistory } = await import("./chat-handler.js");
+    const model = getCurrentModel() ?? "unknown";
+    const contextWindow = getContextWindow(model);
+    const usedTokens = estimateTotalTokens(conversationHistory);
+    return {
+      model,
+      contextWindow,
+      usedTokens,
+      usagePercent: Math.round((usedTokens / contextWindow) * 100),
+      messageCount: conversationHistory.length,
+    };
   });
 
   // Bug report — collects conversation + context and forwards to proxy

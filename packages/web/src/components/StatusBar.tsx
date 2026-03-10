@@ -6,6 +6,7 @@ interface StatusBarProps {
   currentModel?: string;
   projectName?: string;
   sidebarOpen?: boolean;
+  contextUsage?: { usedTokens: number; contextWindow: number; usagePercent: number; messageCount: number } | null;
   onToggleSidebar?: () => void;
   onSettingsClick?: () => void;
   onBugReportClick?: () => void;
@@ -40,12 +41,18 @@ const PROVIDER_MODELS: Record<string, string[]> = {
   ollama: ["llama3.2", "llama3.1", "codellama", "mistral", "deepseek-coder-v2"],
 };
 
+function formatTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
 export default function StatusBar({
   status,
   providerName,
   currentModel,
   projectName,
   sidebarOpen,
+  contextUsage,
   onToggleSidebar,
   onSettingsClick,
   onBugReportClick,
@@ -167,6 +174,28 @@ export default function StatusBar({
           <div className={`h-2 w-2 rounded-full ${colors[status]}`} />
           <span>{labels[status]}</span>
         </div>
+        {contextUsage && contextUsage.usagePercent > 0 && (
+          <div
+            className="flex items-center gap-1.5 text-xs"
+            title={`Context: ~${formatTokens(contextUsage.usedTokens)} / ${formatTokens(contextUsage.contextWindow)} tokens (${contextUsage.messageCount} messages)`}
+          >
+            <div className="w-16 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  contextUsage.usagePercent > 90 ? "bg-red-500" :
+                  contextUsage.usagePercent > 70 ? "bg-yellow-500" : "bg-green-500"
+                }`}
+                style={{ width: `${Math.min(contextUsage.usagePercent, 100)}%` }}
+              />
+            </div>
+            <span className={
+              contextUsage.usagePercent > 90 ? "text-red-400" :
+              contextUsage.usagePercent > 70 ? "text-yellow-400" : "text-zinc-500"
+            }>
+              {contextUsage.usagePercent}%
+            </span>
+          </div>
+        )}
         {onBugReportClick && (
           <button
             onClick={onBugReportClick}

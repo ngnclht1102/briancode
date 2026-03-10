@@ -6,6 +6,8 @@ import { buildSystemPrompt } from "../context/context-builder.js";
 import { addMessageToHistory, getCurrentConversationId, resetConversation } from "../history/history.js";
 import { readFileRaw } from "../context/file-reader.js";
 import { getAgentLimits } from "../config.js";
+import { truncateToFit, estimateTotalTokens, getContextWindow } from "../context/context-manager.js";
+import { getCurrentModel } from "../providers/index.js";
 import { log } from "../logger.js";
 
 interface Attachment {
@@ -17,7 +19,7 @@ interface Attachment {
   data?: string;
 }
 
-const conversationHistory: ChatMessage[] = [];
+export const conversationHistory: ChatMessage[] = [];
 let systemPromptLoaded = false;
 let abortController: AbortController | null = null;
 
@@ -157,7 +159,25 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
       iterations++;
       log.chat.info(`Iteration ${iterations}/${maxIterations}`);
 
-      const stream = provider.chat(conversationHistory, tools);
+      // Truncate context if it exceeds the model's window
+      const model = getCurrentModel() ?? "unknown";
+      const messagesToSend = truncateToFit(conversationHistory, model);
+      if (messagesToSend.length < conversationHistory.length) {
+        const est = estimateTotalTokens(messagesToSend);
+        const limit = getContextWindow(model);
+        log.chat.info(`Context truncated: ${conversationHistory.length} → ${messagesToSend.length} messages (~${est}/${limit} tokens)`);
+      }
+
+      // Notify client about context truncation
+      if (messagesToSend.length < conversationHistory.length) {
+        socket.send(JSON.stringify({
+          type: "chat:context_truncated",
+          dropped: conversationHistory.length - messagesToSend.length,
+          remaining: messagesToSend.length,
+        }));
+      }
+
+      const stream = provider.chat(messagesToSend, tools);
       let fullText = "";
       const toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }> = [];
 
