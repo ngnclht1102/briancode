@@ -21,6 +21,17 @@ const BLOCKED_PATTERNS = [
 
 let activeProcess: ChildProcess | null = null;
 
+/** Kill process and its children (process group) */
+function killProc(proc: ChildProcess, signal: NodeJS.Signals) {
+  try {
+    // Kill entire process group (negative pid)
+    if (proc.pid) process.kill(-proc.pid, signal);
+  } catch {
+    // Fallback to killing just the process
+    try { proc.kill(signal); } catch {}
+  }
+}
+
 export function runCommand(
   command: string,
   options?: {
@@ -66,6 +77,7 @@ function runCommandOnce(
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
+      detached: true,
     });
 
     activeProcess = proc;
@@ -75,7 +87,14 @@ function runCommandOnce(
     const timer = setTimeout(() => {
       killed = true;
       log.shell.warn(`Command timed out after ${timeout}ms${attemptLabel}: ${command.slice(0, 80)}`);
-      proc.kill("SIGTERM");
+      killProc(proc, "SIGTERM");
+      // Force kill if SIGTERM is ignored after 5 seconds
+      setTimeout(() => {
+        if (activeProcess === proc) {
+          log.shell.warn(`Force killing process (SIGKILL): ${command.slice(0, 80)}`);
+          killProc(proc, "SIGKILL");
+        }
+      }, 5000);
     }, timeout);
 
     proc.stdout?.on("data", (chunk: Buffer) => {
@@ -145,8 +164,16 @@ function runCommandOnce(
 export function cancelRunning(): boolean {
   if (activeProcess) {
     log.shell.info("Cancelling running command");
-    activeProcess.kill("SIGTERM");
-    activeProcess = null;
+    const proc = activeProcess;
+    killProc(proc, "SIGTERM");
+    // Force kill if SIGTERM is ignored
+    setTimeout(() => {
+      if (activeProcess === proc) {
+        log.shell.warn("Force killing cancelled process (SIGKILL)");
+        killProc(proc, "SIGKILL");
+        activeProcess = null;
+      }
+    }, 5000);
     return true;
   }
   return false;
