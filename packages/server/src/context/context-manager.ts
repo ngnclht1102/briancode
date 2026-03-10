@@ -17,12 +17,17 @@ const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   "deepseek-reasoner": 64_000,
 
   // Kimi / Moonshot
+  "moonshot-v1-auto": 128_000,
   "moonshot-v1-8k": 8_000,
   "moonshot-v1-16k": 16_000,
   "moonshot-v1-32k": 32_000,
   "moonshot-v1-64k": 64_000,
   "moonshot-v1-128k": 128_000,
   "kimi-latest": 128_000,
+  "kimi-k2.5": 128_000,
+  "kimi-k2-thinking": 128_000,
+  "kimi-k2-thinking-turbo": 128_000,
+  "kimi-k2-turbo-preview": 128_000,
 
   // Qwen
   "qwen-turbo": 128_000,
@@ -56,7 +61,6 @@ function estimateContentTokens(content: MessageContent): number {
     if (block.type === "text") {
       total += Math.ceil(block.text.length / CHARS_PER_TOKEN);
     } else if (block.type === "image") {
-      // Images typically cost ~1000-2000 tokens depending on size
       total += 1500;
     }
   }
@@ -68,15 +72,13 @@ function estimateContentTokens(content: MessageContent): number {
  */
 function estimateMessageTokens(msg: ChatMessage): number {
   let tokens = estimateContentTokens(msg.content);
-  // Tool call metadata
   if (msg.tool_calls) {
     for (const tc of msg.tool_calls) {
       tokens += Math.ceil(tc.function.name.length / CHARS_PER_TOKEN);
       tokens += Math.ceil(tc.function.arguments.length / CHARS_PER_TOKEN);
-      tokens += 20; // overhead per tool call
+      tokens += 20;
     }
   }
-  // Per-message overhead (role, formatting)
   tokens += 10;
   return tokens;
 }
@@ -102,15 +104,16 @@ export function estimateTotalTokens(messages: ChatMessage[]): number {
 /**
  * Truncate conversation history to fit within the model's context window.
  *
- * Strategy:
- * 1. Always keep system messages (at the start)
- * 2. Always keep the last user message + recent context
- * 3. Drop oldest non-system messages first
- * 4. When dropping, remove complete "turns" (user + assistant + tool results)
+ * CRITICAL: Never drops messages from the current turn (last user message + its
+ * tool call results). Only drops older turns. This prevents the model from
+ * losing tool results it just received, which causes infinite re-read loops.
  *
- * Returns a new array (does not mutate input).
+ * @param messages - full conversation history
+ * @param model - model name for context window lookup
+ * @param currentTurnIndex - index in the full messages array where the current
+ *   user turn starts. Messages from this index onward are NEVER dropped.
  */
-export function truncateToFit(messages: ChatMessage[], model: string): ChatMessage[] {
+export function truncateToFit(messages: ChatMessage[], model: string, currentTurnIndex?: number): ChatMessage[] {
   const contextWindow = getContextWindow(model);
   const maxInputTokens = contextWindow - OUTPUT_RESERVE;
 
@@ -121,47 +124,120 @@ export function truncateToFit(messages: ChatMessage[], model: string): ChatMessa
 
   log.chat.warn(`Context too large: ~${totalTokens} tokens, limit ~${maxInputTokens} for ${model}. Truncating.`);
 
-  // Separate system messages from the rest
-  const systemMsgs = messages.filter(m => m.role === "system");
-  const nonSystemMsgs = messages.filter(m => m.role !== "system");
+  // Separate system messages, old history, and current turn
+  const systemMsgs: ChatMessage[] = [];
+  const allNonSystem: ChatMessage[] = [];
 
-  const systemTokens = systemMsgs.reduce((sum, m) => sum + estimateMessageTokens(m), 0);
-  const budget = maxInputTokens - systemTokens;
-
-  if (budget <= 0) {
-    // System prompt alone exceeds limit — just keep system + last user message
-    log.chat.warn("System prompt alone exceeds context budget");
-    const lastUser = nonSystemMsgs.filter(m => m.role === "user").pop();
-    return lastUser ? [...systemMsgs, lastUser] : [...systemMsgs];
+  for (const m of messages) {
+    if (m.role === "system") systemMsgs.push(m);
+    else allNonSystem.push(m);
   }
 
-  // Walk from the end backwards, accumulating messages until we fill the budget
-  const kept: ChatMessage[] = [];
+  // Find the current turn boundary (last user message in non-system messages)
+  let turnBoundary: number;
+  if (currentTurnIndex !== undefined) {
+    // Convert from full-messages index to non-system index
+    turnBoundary = currentTurnIndex - systemMsgs.length;
+    if (turnBoundary < 0) turnBoundary = 0;
+  } else {
+    turnBoundary = 0;
+    for (let i = allNonSystem.length - 1; i >= 0; i--) {
+      if (allNonSystem[i].role === "user") {
+        turnBoundary = i;
+        break;
+      }
+    }
+  }
+
+  const oldHistory = allNonSystem.slice(0, turnBoundary);
+  const currentTurn = allNonSystem.slice(turnBoundary);
+
+  const systemTokens = systemMsgs.reduce((sum, m) => sum + estimateMessageTokens(m), 0);
+  const currentTurnTokens = currentTurn.reduce((sum, m) => sum + estimateMessageTokens(m), 0);
+
+  // If current turn + system alone exceeds budget, truncate the user message
+  if (systemTokens + currentTurnTokens > maxInputTokens) {
+    log.chat.warn(`Current turn alone exceeds context (~${currentTurnTokens} tokens). Truncating user message.`);
+    const truncatedTurn = truncateUserMessage(currentTurn, maxInputTokens - systemTokens);
+
+    if (oldHistory.length > 0) {
+      const marker: ChatMessage = {
+        role: "system",
+        content: `[Note: ${oldHistory.length} earlier messages and part of the current message were removed to fit the context window.]`,
+      };
+      return [...systemMsgs, marker, ...truncatedTurn];
+    }
+    return [...systemMsgs, ...truncatedTurn];
+  }
+
+  // Budget available for old history
+  const budgetForOld = maxInputTokens - systemTokens - currentTurnTokens;
+
+  if (budgetForOld <= 0 || oldHistory.length === 0) {
+    // No room for old history
+    if (oldHistory.length > 0) {
+      const marker: ChatMessage = {
+        role: "system",
+        content: `[Note: ${oldHistory.length} earlier messages were removed to fit the context window.]`,
+      };
+      return [...systemMsgs, marker, ...currentTurn];
+    }
+    return [...systemMsgs, ...currentTurn];
+  }
+
+  // Keep as much old history as fits, from most recent backward
+  const keptOld: ChatMessage[] = [];
   let usedTokens = 0;
 
-  for (let i = nonSystemMsgs.length - 1; i >= 0; i--) {
-    const msgTokens = estimateMessageTokens(nonSystemMsgs[i]);
-    if (usedTokens + msgTokens > budget) break;
-    kept.unshift(nonSystemMsgs[i]);
+  for (let i = oldHistory.length - 1; i >= 0; i--) {
+    const msgTokens = estimateMessageTokens(oldHistory[i]);
+    if (usedTokens + msgTokens > budgetForOld) break;
+    keptOld.unshift(oldHistory[i]);
     usedTokens += msgTokens;
   }
 
-  // Make sure we start on a user message (not a dangling tool result or assistant)
-  while (kept.length > 0 && kept[0].role !== "user") {
-    kept.shift();
+  // Ensure old history starts on a user message
+  while (keptOld.length > 0 && keptOld[0].role !== "user") {
+    keptOld.shift();
   }
 
-  const dropped = nonSystemMsgs.length - kept.length;
+  const dropped = oldHistory.length - keptOld.length;
   if (dropped > 0) {
-    log.chat.info(`Dropped ${dropped} oldest messages to fit context (kept ${kept.length}, ~${usedTokens} tokens)`);
-
-    // Add a summary marker so the model knows context was truncated
+    log.chat.info(`Dropped ${dropped} oldest messages (kept ${keptOld.length} old + ${currentTurn.length} current turn)`);
     const marker: ChatMessage = {
       role: "system",
-      content: `[Note: ${dropped} earlier messages were removed to fit the context window. The conversation continues from the most recent messages below.]`,
+      content: `[Note: ${dropped} earlier messages were removed to fit the context window.]`,
     };
-    return [...systemMsgs, marker, ...kept];
+    return [...systemMsgs, marker, ...keptOld, ...currentTurn];
   }
 
-  return [...systemMsgs, ...kept];
+  return [...systemMsgs, ...keptOld, ...currentTurn];
+}
+
+/**
+ * Truncate the user message (first message in the turn) when it alone exceeds budget.
+ * Keeps tool results intact — only truncates the user message content.
+ */
+function truncateUserMessage(turn: ChatMessage[], budget: number): ChatMessage[] {
+  if (turn.length === 0) return turn;
+
+  const userMsg = turn[0];
+  const rest = turn.slice(1);
+  const restTokens = rest.reduce((sum, m) => sum + estimateMessageTokens(m), 0);
+  const userBudget = budget - restTokens - 100; // margin
+
+  if (userBudget <= 0) return turn;
+
+  const maxChars = Math.floor(userBudget * CHARS_PER_TOKEN);
+  const content = typeof userMsg.content === "string"
+    ? userMsg.content
+    : userMsg.content.filter(b => b.type === "text").map(b => (b as { type: "text"; text: string }).text).join("\n");
+
+  if (content.length <= maxChars) return turn;
+
+  log.chat.warn(`Truncating user message from ${content.length} to ${maxChars} chars`);
+  const truncated = content.slice(0, maxChars)
+    + `\n\n... [Message truncated: original was ${content.length} chars, exceeds model context window. Use a model with a larger context or send a shorter message.]`;
+
+  return [{ ...userMsg, content: truncated }, ...rest];
 }

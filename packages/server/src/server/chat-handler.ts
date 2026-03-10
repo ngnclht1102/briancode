@@ -143,6 +143,8 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
     }
   }
 
+  // Track the index where the current turn starts (for context truncation)
+  const currentTurnIndex = conversationHistory.length;
   conversationHistory.push({ role: "user", content: userContent });
   addMessageToHistory("user", message);
 
@@ -162,17 +164,15 @@ export async function chatHandler(socket: WebSocket, message: string, attachment
       iterations++;
       log.chat.info(`Iteration ${iterations}/${maxIterations}`);
 
-      // Truncate context if it exceeds the model's window
+      // Truncate old history if context exceeds model window.
+      // CRITICAL: currentTurnIndex ensures we never drop the current user
+      // message or its tool results — only older conversation turns get dropped.
       const model = getCurrentModel() ?? "unknown";
-      const messagesToSend = truncateToFit(conversationHistory, model);
+      const messagesToSend = truncateToFit(conversationHistory, model, currentTurnIndex);
       if (messagesToSend.length < conversationHistory.length) {
         const est = estimateTotalTokens(messagesToSend);
         const limit = getContextWindow(model);
         log.chat.info(`Context truncated: ${conversationHistory.length} → ${messagesToSend.length} messages (~${est}/${limit} tokens)`);
-      }
-
-      // Notify client about context truncation
-      if (messagesToSend.length < conversationHistory.length) {
         socket.send(JSON.stringify({
           type: "chat:context_truncated",
           dropped: conversationHistory.length - messagesToSend.length,
