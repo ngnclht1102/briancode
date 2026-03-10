@@ -12,6 +12,7 @@ import ShortcutsHelp from "./components/ShortcutsHelp";
 import ProjectSwitcher from "./components/ProjectSwitcher";
 import ConversationHistory from "./components/ConversationHistory";
 import CodeView from "./components/CodeView";
+import BugReport from "./components/BugReport";
 
 export default function App() {
   const addMessage = useChatStore((s) => s.addMessage);
@@ -23,6 +24,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
   const [providerName, setProviderName] = useState("deepseek");
   const [currentModel, setCurrentModel] = useState<string | undefined>();
   const [supportsVision, setSupportsVision] = useState(false);
@@ -154,6 +156,7 @@ export default function App() {
         sidebarOpen={showSidebar}
         onToggleSidebar={() => setShowSidebar((v) => !v)}
         onSettingsClick={() => setShowSettings(true)}
+        onBugReportClick={() => setShowBugReport(true)}
         onProjectClick={() => setShowProjectSwitcher(true)}
         onModelChange={handleModelChange}
       />
@@ -229,6 +232,7 @@ export default function App() {
           }}
         />
       )}
+      {showBugReport && <BugReport onClose={() => setShowBugReport(false)} />}
       {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
       {showProjectSwitcher && (
         <ProjectSwitcher

@@ -11,7 +11,7 @@ import { readFileRaw } from "../context/file-reader.js";
 import { resetChatState, loadChatMessages } from "./chat-handler.js";
 import { broadcastMessage } from "./ws-handler.js";
 import { registerUploadRoute } from "./upload-handler.js";
-import { log } from "../logger.js";
+import { log, getRecentLogs } from "../logger.js";
 
 function resolvePath(input: string): string {
   if (input.startsWith("~")) {
@@ -235,6 +235,82 @@ export function registerRoutes(app: FastifyInstance) {
   app.post("/api/undo", async () => {
     log.router.info("Undo last change");
     return undoLast();
+  });
+
+  // Bug report — collects conversation + context and forwards to proxy
+  app.post("/api/bug-report", async (req) => {
+    const body = req.body as { description?: string };
+    const config = getSafeConfig();
+
+    // Get conversation messages from chat handler
+    const { getConversationSnapshot } = await import("./chat-handler.js");
+    const messages = getConversationSnapshot();
+
+    const report = {
+      description: body.description ?? "",
+      provider: config.defaultProvider,
+      model: config.providers[config.defaultProvider]?.model ?? "unknown",
+      project: getProjectRoot(),
+      messages,
+      serverLogs: getRecentLogs(),
+    };
+
+    // Forward to proxy bug endpoint
+    const proxyBaseUrl = config.providers[config.defaultProvider]?.baseUrl;
+    // Derive proxy host from any configured baseUrl (they all point to the same proxy)
+    let proxyUrl = "";
+    for (const prov of Object.values(config.providers)) {
+      if (prov.baseUrl && prov.baseUrl.includes("3100")) {
+        const url = new URL(prov.baseUrl);
+        proxyUrl = `${url.protocol}//${url.host}/bugs`;
+        break;
+      }
+    }
+
+    if (!proxyUrl) {
+      // No proxy configured, save locally
+      const savePath = path.join(os.homedir(), ".brian-code", "bugs");
+      const fs = await import("fs");
+      fs.mkdirSync(savePath, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `bug-${timestamp}.txt`;
+      const lines = [
+        `Bug Report — ${new Date().toISOString()}`,
+        "=".repeat(60),
+        "",
+        `Provider: ${report.provider}`,
+        `Model: ${report.model}`,
+        `Project: ${report.project}`,
+        "",
+        "--- User Description ---",
+        report.description || "(no description)",
+        "",
+        "--- Conversation ---",
+      ];
+      for (const msg of messages) {
+        lines.push("");
+        lines.push(`[${msg.role}] (${new Date(msg.timestamp).toLocaleString()})`);
+        lines.push(msg.content ?? "");
+      }
+      lines.push("", "--- End of Report ---");
+      fs.writeFileSync(path.join(savePath, filename), lines.join("\n"), "utf-8");
+      log.router.done(`Bug report saved locally: ${filename}`);
+      return { success: true, filename, location: "local" };
+    }
+
+    try {
+      const res = await fetch(proxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(report),
+      });
+      const data = await res.json() as { success?: boolean; filename?: string };
+      log.router.done(`Bug report forwarded to proxy: ${data.filename}`);
+      return { success: true, filename: data.filename, location: "proxy" };
+    } catch (err) {
+      log.router.error(`Failed to forward bug report: ${String(err)}`);
+      return { success: false, error: "Failed to send bug report to proxy" };
+    }
   });
 
   registerUploadRoute(app);

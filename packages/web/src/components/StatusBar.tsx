@@ -8,6 +8,7 @@ interface StatusBarProps {
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   onSettingsClick?: () => void;
+  onBugReportClick?: () => void;
   onProjectClick?: () => void;
   onModelChange?: (model: string) => void;
 }
@@ -47,6 +48,7 @@ export default function StatusBar({
   sidebarOpen,
   onToggleSidebar,
   onSettingsClick,
+  onBugReportClick,
   onProjectClick,
   onModelChange,
 }: StatusBarProps) {
@@ -165,6 +167,15 @@ export default function StatusBar({
           <div className={`h-2 w-2 rounded-full ${colors[status]}`} />
           <span>{labels[status]}</span>
         </div>
+        {onBugReportClick && (
+          <button
+            onClick={onBugReportClick}
+            className="text-zinc-500 hover:text-red-400 transition-colors text-xs"
+            title="Report a problem"
+          >
+            Report
+          </button>
+        )}
         {onSettingsClick && (
           <button
             onClick={onSettingsClick}

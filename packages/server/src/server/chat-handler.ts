@@ -21,6 +21,20 @@ const conversationHistory: ChatMessage[] = [];
 let systemPromptLoaded = false;
 let abortController: AbortController | null = null;
 
+export function getConversationSnapshot() {
+  return conversationHistory
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : m.content.filter(b => b.type === "text").map(b => (b as { type: "text"; text: string }).text).join("\n"),
+      timestamp: Date.now(),
+      toolCalls: m.tool_calls?.map(tc => ({
+        name: tc.function.name,
+        args: tc.function.arguments,
+      })),
+    }));
+}
+
 export function resetChatState() {
   log.chat.info("Chat state reset");
   conversationHistory.length = 0;

@@ -1,4 +1,7 @@
 import Fastify from "fastify";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 /**
  * API Proxy Server
@@ -25,6 +28,15 @@ const PROVIDER_TARGETS: Record<string, string> = {
 const PORT = parseInt(process.env.PROXY_PORT ?? "3100", 10);
 const HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 
+// In-memory ring buffer for recent proxy logs
+const MAX_LOG_ENTRIES = 200;
+const recentLogs: string[] = [];
+
+function addLog(entry: string) {
+  recentLogs.push(entry);
+  if (recentLogs.length > MAX_LOG_ENTRIES) recentLogs.shift();
+}
+
 const app = Fastify({ logger: true });
 
 // Override ALL content type parsers to keep body as raw buffer (for proxying as-is)
@@ -49,12 +61,95 @@ const SKIP_HEADERS = new Set([
   "content-length",
 ]);
 
+// Capture request/response logs
+app.addHook("onRequest", async (request) => {
+  addLog(`${new Date().toISOString()} → ${request.method} ${request.url}`);
+});
+
+app.addHook("onResponse", async (request, reply) => {
+  addLog(`${new Date().toISOString()} ← ${request.method} ${request.url} ${reply.statusCode} (${Math.round(reply.elapsedTime)}ms)`);
+});
+
 // Health check
 app.get("/", async () => {
   return {
     status: "ok",
     providers: Object.keys(PROVIDER_TARGETS),
   };
+});
+
+// Bug reports storage
+const BUGS_DIR = path.join(os.homedir(), ".brian-code", "bugs");
+fs.mkdirSync(BUGS_DIR, { recursive: true });
+
+app.post("/bugs", async (request, reply) => {
+  try {
+    const body = JSON.parse((request.body as Buffer).toString());
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `bug-${timestamp}.txt`;
+    const filepath = path.join(BUGS_DIR, filename);
+
+    const lines: string[] = [
+      `Bug Report — ${new Date().toISOString()}`,
+      "=".repeat(60),
+      "",
+      `Provider: ${body.provider ?? "unknown"}`,
+      `Model: ${body.model ?? "unknown"}`,
+      `Project: ${body.project ?? "unknown"}`,
+      "",
+      "--- User Description ---",
+      body.description ?? "(no description)",
+      "",
+      "--- Conversation ---",
+    ];
+
+    if (body.messages && Array.isArray(body.messages)) {
+      for (const msg of body.messages) {
+        lines.push("");
+        lines.push(`[${msg.role}] (${new Date(msg.timestamp).toLocaleString()})`);
+        lines.push(msg.content ?? "");
+        if (msg.toolCalls && msg.toolCalls.length > 0) {
+          for (const tc of msg.toolCalls) {
+            lines.push(`  > tool: ${tc.name}(${JSON.stringify(tc.args)})`);
+            if (tc.result) lines.push(`  < ${tc.result.slice(0, 500)}`);
+          }
+        }
+      }
+    }
+
+    if (body.serverLogs && Array.isArray(body.serverLogs) && body.serverLogs.length > 0) {
+      lines.push("");
+      lines.push("--- Server Logs (recent) ---");
+      for (const entry of body.serverLogs) {
+        lines.push(entry);
+      }
+    }
+
+    lines.push("");
+    lines.push("--- Proxy Logs (recent) ---");
+    for (const entry of recentLogs) {
+      lines.push(entry);
+    }
+
+    lines.push("");
+    lines.push("--- End of Report ---");
+
+    fs.writeFileSync(filepath, lines.join("\n"), "utf-8");
+    app.log.info(`Bug report saved: ${filename}`);
+    return reply.send({ success: true, filename });
+  } catch (err) {
+    app.log.error(err, "Failed to save bug report");
+    return reply.status(500).send({ error: "Failed to save bug report" });
+  }
+});
+
+app.get("/bugs", async () => {
+  const files = fs.readdirSync(BUGS_DIR).filter(f => f.endsWith(".txt")).sort().reverse();
+  return { count: files.length, files };
+});
+
+app.get("/logs", async () => {
+  return { count: recentLogs.length, logs: [...recentLogs] };
 });
 
 // Catch-all proxy route: /:provider/*
@@ -112,6 +207,7 @@ app.all("/:provider/*", async (request, reply) => {
 
     return reply.send(response.body);
   } catch (err) {
+    addLog(`${new Date().toISOString()} ERROR ${provider}: ${err instanceof Error ? err.message : String(err)}`);
     app.log.error(err, `Proxy error for ${provider}`);
     return reply.status(502).send({
       error: "Proxy error",
