@@ -9,8 +9,7 @@
   ],
   "scripts": {
     "dev": "yarn workspace @brian-code/web dev & yarn workspace @brian-code/server dev",
-    "build": "yarn workspace @brian-code/web build && yarn workspace @brian-code/server build && rm -rf packages/server/public/assets && cp -r packages/web/dist/* packages/server/public/",
-    "build:prod": "yarn workspace @brian-code/web build && yarn workspace @brian-code/server build && node scripts/bundle.js",
+    "build": "yarn workspace @brian-code/web build && yarn workspace @brian-code/server build && yarn workspace @brian-code/proxy build && node scripts/bundle.js",
     "start": "yarn workspace @brian-code/server start",
     "test:e2e": "yarn workspace @brian-code/e2e test",
     "lint": "yarn workspace @brian-code/server lint & yarn workspace @brian-code/web lint"

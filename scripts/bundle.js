@@ -7,13 +7,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 
 const webDist = path.join(root, "packages/web/dist");
-const serverWebDist = path.join(root, "packages/server/dist/web");
+const serverPublic = path.join(root, "packages/server/public");
+const serverDistPublic = path.join(root, "packages/server/dist/public");
 
-// Copy web dist into server dist
 if (!fs.existsSync(webDist)) {
-  console.error("Error: packages/web/dist not found. Run `yarn workspace @brian-code/web build` first.");
+  console.error("Error: packages/web/dist not found. Run web build first.");
   process.exit(1);
 }
 
-fs.cpSync(webDist, serverWebDist, { recursive: true });
-console.log(`Bundled frontend into ${serverWebDist}`);
+// Copy web dist → server/public (for dev server)
+fs.rmSync(serverPublic, { recursive: true, force: true });
+fs.cpSync(webDist, serverPublic, { recursive: true });
+console.log(`Copied frontend → ${path.relative(root, serverPublic)}`);
+
+// Copy web dist → server/dist/public (for production — self-contained)
+if (fs.existsSync(path.join(root, "packages/server/dist"))) {
+  fs.rmSync(serverDistPublic, { recursive: true, force: true });
+  fs.cpSync(webDist, serverDistPublic, { recursive: true });
+  console.log(`Copied frontend → ${path.relative(root, serverDistPublic)}`);
+}

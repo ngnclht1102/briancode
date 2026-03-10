@@ -1,5 +1,9 @@
 node_modules/
+dist/
 packages/web/dist/
+packages/server/public/
+packages/server/dist/
+packages/proxy/dist/
 .env
 .env.local
 *.log

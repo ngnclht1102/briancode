@@ -25,9 +25,4 @@ await build({
   },
 });
 
-// Copy public folder into dist so it's self-contained
-if (fs.existsSync("public")) {
-  fs.cpSync("public", "dist/public", { recursive: true });
-}
-
 console.log("Server bundled: dist/cli.js");
